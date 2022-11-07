@@ -21,7 +21,7 @@
     <img src="images/pydevp2p.png" alt="Logo" width="200" height="80">
   </a>
 
-  <h3 align="center">PYDEVP2P</h3>
+  <h1 align="center">PYDEVP2P</h3>
 
   <p align="center">
     A Toolkit Helper Library for Ethereum ECIES and Devp2p
