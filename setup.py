@@ -9,13 +9,14 @@ pkgs = namespace_pkgs + pkgs
 
 
 setup(
-    name="pydevp2p",
+    name='pydevp2p',
     version='0.1.0',
-    license="MIT License",
-    setup_requires=['setuptools==59.6.0', 'wheel'],
     description="A Toolkit Helper Library for Ethereum ECIES and Devp2p",
-    author="Joshua Kemp",
+    url='https://github.com/jmkemp20/pydevp2p',
+    author='Joshua Kemp',
     author_email="kem3jm@dukes.jmu.edu",
+    license='MIT License',
+    setup_requires=['setuptools==59.6.0', 'wheel'],
     packages=pkgs,
     include_package_data=True,
     zip_safe=False,
