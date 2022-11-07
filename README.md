@@ -7,11 +7,11 @@
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
 
-[![Contributors][contributors-shield]][contributors-url]
-[![Forks][forks-shield]][forks-url]
-[![Stargazers][stars-shield]][stars-url]
-[![GitHub issues](https://img.shields.io/github/issues/jmkemp20/pydevp2p?style=for-the-badge)](https://github.com/jmkemp20/pydevp2p/issues)
-[![MIT License][license-shield]][license-url]
+[![Contributors](https://img.shields.io/github/contributors/jmkemp20/pydevp2p?style=for-the-badge)](https://github.com/jmkemp20/pydevp2p/graphs/contributors)
+[![Forks](https://img.shields.io/github/forks/jmkemp20/pydevp2p?style=for-the-badge)](https://github.com/jmkemp20/pydevp2p/network)
+[![Stargazers](https://img.shields.io/github/stars/jmkemp20/pydevp2p?style=for-the-badge)](https://github.com/jmkemp20/pydevp2p/stargazers)
+[![Issues](https://img.shields.io/github/issues/jmkemp20/pydevp2p?style=for-the-badge)](https://github.com/jmkemp20/pydevp2p/issues)
+[![License](https://img.shields.io/github/license/jmkemp20/pydevp2p?style=for-the-badge)](https://github.com/jmkemp20/pydevp2p/blob/main/LICENSE.txt)
 [![LinkedIn][linkedin-shield]][linkedin-url]
 
 <!-- PROJECT LOGO -->
@@ -21,7 +21,7 @@
     <img src="images/logo.png" alt="Logo" width="80" height="80">
   </a>
 
-  <h3 align="center">pydevp2p</h3>
+  <h3 align="center">PYDEVP2P</h3>
 
   <p align="center">
     A Toolkit Helper Library for Ethereum ECIES and Devp2p
@@ -152,15 +152,5 @@ Project Link: [https://github.com/jmkemp20/pydevp2p](https://github.com/jmkemp20
 <!-- MARKDOWN LINKS & IMAGES
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/jmkemp20/devp2p.svg?style=for-the-badge
-[contributors-url]: https://github.com/jmkemp20/pydevp2p/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/jmkemp20/devp2p.svg?style=for-the-badge
-[forks-url]: https://github.com/jmkemp20/pydevp2p/network/members
-[stars-shield]: https://img.shields.io/github/stars/jmkemp20/devp2p.svg?style=for-the-badge
-[stars-url]: https://github.com/jmkemp20/pydevp2p/stargazers
-[issues-shield]: https://img.shields.io/github/issues/jmkemp20/devp2p.svg?style=for-the-badge
-[issues-url]: https://github.com/jmkemp20/pydevp2p/issues
-[license-shield]: https://img.shields.io/github/license/jmkemp20/devp2p.svg?style=for-the-badge
-[license-url]: https://github.com/jmkemp20/pydevp2p/blob/main/LICENSE.txt
 [linkedin-shield]: https://img.shields.io/badge/-LinkedIn-black.svg?style=for-the-badge&logo=linkedin&colorB=555
 [linkedin-url]: https://www.linkedin.com/in/joshua-kemp20/
