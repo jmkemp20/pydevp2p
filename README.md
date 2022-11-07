@@ -17,7 +17,7 @@
 <!-- PROJECT LOGO -->
 <br />
 <p align="center">
-  <a href="https://github.com/jmkemp20/devp2p">
+  <a href="https://github.com/jmkemp20/pydevp2p">
     <img src="images/pydevp2p.png" alt="Logo" width="200" height="80">
   </a>
 
