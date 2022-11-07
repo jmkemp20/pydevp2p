@@ -44,7 +44,8 @@
     <li>
       <a href="#about-the-project">About The Project</a>
       <ul>
-        <li><a href="#built-with">Built With</a></li>
+        <li><a href="#wireshark-dissector">Wireshark Dissector</a></li>
+        <li><a href="#pip-deps">Dependencies</a></li>
       </ul>
     </li>
     <li>
@@ -68,11 +69,17 @@
 
 This library is meant to serve as a single tool to analyze, dissect, and decipher devp2p communication amongst Ethereum nodes. The goal is to provide a devp2p cryptography, ecies, and rlpx library with very minimal 3rd party dependencies, keeping it easy to use and extensible. As existing python implementations of devp2p have become deprecated by the use of certain 3rd party packages, it is important to create a tool that can be quickly and easily used to aid developers, analysts and general interest.
 
+This tool is not meant to spin up a devp2p network, nor communicate amongst other networks. It is purely meant to provide an interface to common functions, tools used throughout devp2p, including but limited to: ECIES (ECC, ECDH, ECDSA), secp256k1 calculations, RLP decoding and encoding, RLPx (decryption, encryption and decoding), and discv4/v5. While also providing a learning mechanism to break down the not-so-well documented devp2p schema.
+
 This library is very heavily based on the way [go-ethereum](https://github.com/ethereum/go-ethereum) implements p2p communication and their cryptography schema, while also providing general ECIES deciphering tools.
 
 <!--[![Product Name Screen Shot][product-screenshot]](https://example.com)-->
 
-### Built With
+### Wireshark Dissector
+
+TBD: This will work hand in hand with an upcoming python3.10 <-> LUA bridge that will be used to provide Wireshark dissectors to decipher in real-time the inner-workings of a devp2p network.
+
+### Pip Deps
 
 - [pycryptodome](https://www.pycryptodome.org/)
 - [eth-keys](https://github.com/ethereum/eth-keys)
