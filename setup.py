@@ -21,4 +21,13 @@ setup(
     include_package_data=True,
     zip_safe=False,
     install_requires=reqs,
+    classifiers=[
+        "Development Status :: 3 - Alpha",
+        "Intended Audience :: Developers",
+        "License :: OSI Approved :: MIT License",
+        "Programming Language :: Python :: 3.10",
+        "Programming Language :: Python :: 3 :: Only",
+    ],
+    keywords="devp2p, ethereum, ecies, ecc, ecdh, ecdsa, rlp, rlpx",
+    python_requires=">=3.7, <4",
 )
