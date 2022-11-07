@@ -18,7 +18,7 @@
 <br />
 <p align="center">
   <a href="https://github.com/jmkemp20/devp2p">
-    <img src="images/logo.png" alt="Logo" width="80" height="80">
+    <img src="images/pydevp2p.png" alt="Logo" width="200" height="80">
   </a>
 
   <h3 align="center">PYDEVP2P</h3>
