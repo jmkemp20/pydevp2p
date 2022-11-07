@@ -69,10 +69,6 @@
 
 [![Product Name Screen Shot][product-screenshot]](https://example.com)
 
-Here's a blank template to get started:
-**To avoid retyping too much info. Do a search and replace with your text editor for the following:**
-`jmkemp20`, `devp2p`, `twitter_handle`, `kemp3jm@dukes.jmu.edu`, `pydevp2p`, `project_description`
-
 ### Built With
 
 - []()
