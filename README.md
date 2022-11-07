@@ -29,7 +29,7 @@
     <a href="https://github.com/jmkemp20/pydevp2p"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/jmkemp20/pydevp2p">View Demo</a>
+    <a href="https://github.com/ethereum/devp2p">devp2p</a>
     ·
     <a href="https://github.com/jmkemp20/pydevp2p/issues">Report Bug</a>
     ·
@@ -59,7 +59,6 @@
     <li><a href="#contributing">Contributing</a></li>
     <li><a href="#license">License</a></li>
     <li><a href="#contact">Contact</a></li>
-    <li><a href="#acknowledgements">Acknowledgements</a></li>
   </ol>
 </details>
 
@@ -67,13 +66,17 @@
 
 ## About The Project
 
-[![Product Name Screen Shot][product-screenshot]](https://example.com)
+This library is meant to serve as a single tool to analyze, dissect, and decipher devp2p communication amongst Ethereum nodes. The goal is to provide a devp2p cryptography, ecies, and rlpx library with very minimal 3rd party dependencies, keeping it easy to use and extensible. As existing python implementations of devp2p have become deprecated by the use of certain 3rd party packages, it is important to create a tool that can be quickly and easily used to aid developers, analysts and general interest.
+
+This library is very heavily based on the way [go-ethereum](https://github.com/ethereum/go-ethereum) implements p2p communication and their cryptography schema, while also providing general ECIES deciphering tools.
+
+<!--[![Product Name Screen Shot][product-screenshot]](https://example.com)-->
 
 ### Built With
 
-- []()
-- []()
-- []()
+- [pycryptodome](https://www.pycryptodome.org/)
+- [eth-keys](https://github.com/ethereum/eth-keys)
+- [rlp](https://github.com/ethereum/pyrlp)
 
 <!-- GETTING STARTED -->
 
@@ -83,29 +86,29 @@ To get a local copy up and running follow these simple steps.
 
 ### Prerequisites
 
-This is an example of how to list things you need to use the software and how to install them.
+In order to get started some ubuntu "may" need to be installed, then clone the repo and install the pip package like normal
 
-- npm
+- Ubuntu dependencies
   ```sh
-  npm install npm@latest -g
+  sudo apt-get install libssl-dev build-essential automake
   ```
 
 ### Installation
 
 1. Clone the repo
    ```sh
-   git clone https://github.com/jmkemp20/devp2p.git
+   git clone https://github.com/jmkemp20/pydevp2p.git
    ```
-2. Install NPM packages
+2. Install pydevp2p via setup.py
    ```sh
-   npm install
+   cd pydevp2p && pip install .
    ```
 
 <!-- USAGE EXAMPLES -->
 
 ## Usage
 
-Use this space to show useful examples of how a project can be used. Additional screenshots, code examples and demos work well in this space. You may also link to more resources.
+Coming soon!
 
 _For more examples, please refer to the [Documentation](https://example.com)_
 
