@@ -93,7 +93,7 @@ To get a local copy up and running follow these simple steps.
 
 ### Prerequisites
 
-In order to get started some ubuntu "may" need to be installed, then clone the repo and install the pip package like normal
+In order to get started some ubuntu deps "may" need to be installed, then clone the repo and install the pip package like normal
 
 - Ubuntu dependencies
   ```sh
