@@ -79,7 +79,7 @@ def get_secrets(h: HandshakeState, authData: bytes, AuthRespData: bytes):
 
     return s
 
-def read_handshake_msg(privK: bytes, msg: bytes) -> list[bytes] | None:
+def read_handshake_msg(privK: bytes, msg: bytes) -> AuthMsgV4 | AuthRespV4 | None:
     """readMsg reads an encrypted handshake message, decoding it into msg.
     The decoded output is either an:
     .. Auth Msg V4 (from the initiator)
@@ -117,19 +117,8 @@ def read_handshake_msg(privK: bytes, msg: bytes) -> list[bytes] | None:
     if auth is None:
         print(f"parse_auth_type(dec) readMsg(privK, msg) {e}")
         return
-    print(auth)
-    
-    # Based on auth type, we can parse the handshake data, add to known node information
-    # and the try to capture secrets from the handshake data
-    if isinstance(auth, AuthMsgV4):
-        pass
-    elif isinstance(auth, AuthRespV4):
-        pass
-    else:
-        print(f"readMsg(privK, msg) Err Unknown Auth Msg Type")
-        return
         
-    return dec
+    return auth
 
 
 # RLPx Frame Decryption Functions

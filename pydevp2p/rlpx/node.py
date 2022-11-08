@@ -1,5 +1,6 @@
 
-from pydevp2p.rlpx.types import PeerConnection
+from pydevp2p.rlpx.rlpx import parse_auth_type, read_handshake_msg
+from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, PeerConnection
 from pydevp2p.crypto.secp256k1 import privtopub
 from pydevp2p.rlpx.types import PeerConnection
 
@@ -42,22 +43,38 @@ class Node:
         self.laddr = ipaddr # TODO need to convert to logical addr
         self.peers: dict[str, PeerConnection] = {} # Dictionary of PeerConnections
         
-    def addConnection(self, ipaddr: str, remotePubK: bytes):
-        self.peers[ipaddr] = PeerConnection(self.privK, remotePubK, False, ipaddr)
+    def addConnection(self, ipaddr: str, remotePubK: bytes) -> PeerConnection:
+        p = self.peers.get(ipaddr)
+        if p is not None:
+            print("addConnection(ipaddr, remotePubK) PeerConnection already added")
+            return p          
+        p = PeerConnection(self.privK, remotePubK, False, ipaddr)
+        self.peers[ipaddr] = p
+        return p
         
     def dropConnection(self, ipaddr: str):
         self.peers.pop(ipaddr)
+        
+    def readHandshakeMsg(self, msg: bytes | str) -> AuthMsgV4 | AuthRespV4 | None:
+        cleansed = msg
+        if isinstance(cleansed, str):
+            cleansed = bytes.fromhex(msg)
+        dec = read_handshake_msg(self.privK, cleansed)
+        return dec
         
 
 all_nodes: dict[str, Node] = {}
         
     
 def add_new_node(ipaddr: str, privk: bytes) -> Node:
+    n = all_nodes.get(ipaddr)
+    if n is not None:
+        print("add_new_node(ipaddr, privk) Node already added")
+        return n
     n = Node(ipaddr, privk)
     all_nodes[ipaddr] = n
     return n
     
 def remove_node(ipaddr: str) -> None:
     all_nodes.pop(ipaddr)
-    
 
