@@ -74,6 +74,16 @@ def verify_signature(sig: bytes):
         return False
     return True
 
+def recover_pubk(hash: bytes, sig: bytes) -> bytes:
+    # TODO - Remove this dependency
+    from eth_keys import KeyAPI
+    test_sig = KeyAPI.Signature(sig)
+    pkey = test_sig.recover_public_key_from_msg_hash(hash)
+    if not pkey.verify_msg_hash(hash, test_sig):
+        print("recover_pubk(hash, sig): Err Unable To Verify Msg")
+        return None
+    return pkey.to_bytes()
+
 def signature_to_pubk(msg: bytes, sig: bytes) -> bytes | None:
     """Public key recovery from the ECDSA signature
     https://www.secg.org/sec1-v2.pdf
@@ -93,14 +103,7 @@ def signature_to_pubk(msg: bytes, sig: bytes) -> bytes | None:
         bytes: The raw public key of the node that signed the msg
     """
     # crypto/secp256k1/secp256.go
-    # TODO - Remove this dependency
-    from eth_keys import KeyAPI
-    test_sig = KeyAPI.Signature(sig)
-    pkey = test_sig.recover_public_key_from_msg(msg)
-    if not pkey.verify_msg(msg, test_sig):
-        print("recoverPubkey(msg, sig): Err Unable To Verify Msg")
-        return None
-    return pkey.to_bytes()
+    return recover_pubk(keccak256Hash(msg), sig)
 
 def ecdsa_sign(digestHash: bytes, privK: bytes) -> bytes:
     """_summary_
@@ -132,6 +135,8 @@ def unmarshal(data: bytes) -> bytes | None:
     # .. NOTE for now we are using the standard secp256k1: ethcrypto.S256(): ECIES_AES128_SHA256
     byteLen = int((secp256k1.size + 7) / 8)
     
+    data = b'\x04' + data if len(data) == 64 else data
+    
     if len(data) != 1 + 2 * byteLen:
         print(f"unmarshal(data) Err len(data) != 1 * 2 * byteLen, {len(data)} != {1 + 2 * byteLen}")
         return None
@@ -150,4 +155,4 @@ def unmarshal(data: bytes) -> bytes | None:
         print(f"unmarshal(data) Err assertValidity(x, y)")
         return None
     
-    return curve.encode_pubkey((x,y), "hex_electrum")
+    return curve.encode_pubkey((x,y), "bin_electrum")

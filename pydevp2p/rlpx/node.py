@@ -1,8 +1,9 @@
 
-from pydevp2p.rlpx.rlpx import parse_auth_type, read_handshake_msg
-from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, PeerConnection
+from pydevp2p.rlpx.rlpx import read_handshake_msg
+from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, HandshakeState, Secrets, SessionState
 from pydevp2p.crypto.secp256k1 import privtopub
-from pydevp2p.rlpx.types import PeerConnection
+from pydevp2p.utils import hex_to_bytes
+
 
 """
 This maintains all of the information related to an Eth Node along with 
@@ -27,7 +28,50 @@ Why this may be important - In a peer-to-peer network, each node will communicat
 Could be a ton of extra overhead and a lot of unneeded processing
 """
 
-# TODO MAKE THIS MORE LIKE A GRAPH AND LESS LIKES A MANY TO MANY DICTIONARY
+class PeerConnection:
+    """
+    An RLPx network connection to an <other> node
+    
+    Before sending messages, a handshake must be performed
+    """
+    def __init__(self, parentNode: "Node", otherNode: "Node", initiator: bool) -> None:
+        self.parentNode = parentNode
+        self.otherNode = otherNode
+        self.hshakeCompleted = False
+        self.handshakeState = HandshakeState(initiator, otherNode.pubK)
+        self.sessionState: SessionState | None = None
+        self.authInitData = None
+        self.authRespData = None
+        self.secrets: Secrets | None = None
+        if not initiator:
+            # need to make sure there is a peer connection for the other node
+            otherNode.addConnection(parentNode, True)
+        
+    def handleAuthMsg(self, msg: AuthMsgV4, privK: bytes) -> bytes | None:
+        # Here we need to set the RandomPrivKey to the other side of the connection
+        otherHandshakeState = self.otherNode.peers.get(self.parentNode.ipaddr).handshakeState
+        otherHandshakeState.initNonce = msg.Nonce
+        if hasattr(msg, "RandomPrivKey"):
+            otherHandshakeState.randomPrivk = msg.RandomPrivKey
+        return self.handshakeState.handleAuthMsg(msg, privK)
+        
+    def handleAuthResp(self, msg: AuthRespV4) -> bytes | None:
+        # Here we need to set the RandomPrivKey to the other side of the connection
+        otherNodePeer = self.otherNode.peers.get(self.parentNode.ipaddr)
+        if otherNodePeer is not None:
+            otherHandshakeState = self.otherNode.peers.get(self.parentNode.ipaddr).handshakeState
+            otherHandshakeState.respNonce = msg.Nonce
+            if hasattr(msg, "RandomPrivKey"):
+                otherHandshakeState.randomPrivk = msg.RandomPrivKey 
+        return self.handshakeState.handleAuthResp(msg)
+    
+    def getSecrets(self) -> Secrets | None:
+        self.secrets = self.handshakeState.secrets(self.authInitData, self.authRespData)
+        if self.sessionState is not None:
+            print("PeerConnection getSecrets(): Err can't handshake twice")
+            return None
+        self.sessionState = SessionState(self.secrets)
+        return self.secrets
 
 class Node:
     """
@@ -38,28 +82,61 @@ class Node:
     """
     def __init__(self, ipaddr: str, privK: bytes) -> None:
         self.ipaddr = ipaddr
+        # TODO allow a node without a privk (this is to prevent hardcoding)
         self.privK = privK
         self.pubK = privtopub(privK)
-        self.laddr = ipaddr # TODO need to convert to logical addr
         self.peers: dict[str, PeerConnection] = {} # Dictionary of PeerConnections
         
-    def addConnection(self, ipaddr: str, remotePubK: bytes) -> PeerConnection:
-        p = self.peers.get(ipaddr)
+    def addConnection(self, otherNode: "Node", init: bool) -> PeerConnection:
+        p = self.peers.get(otherNode.ipaddr)
         if p is not None:
-            print("addConnection(ipaddr, remotePubK) PeerConnection already added")
+            # print("addConnection(ipaddr, remotePubK) PeerConnection already added")
             return p          
-        p = PeerConnection(self.privK, remotePubK, False, ipaddr)
-        self.peers[ipaddr] = p
-        return p
+        p = PeerConnection(self, otherNode, init)
+        self.peers[otherNode.ipaddr] = p
+        return self.peers[otherNode.ipaddr]
         
     def dropConnection(self, ipaddr: str):
         self.peers.pop(ipaddr)
         
-    def readHandshakeMsg(self, msg: bytes | str) -> AuthMsgV4 | AuthRespV4 | None:
+    def readHandshakeMsg(self, msg: bytes | str, srcNode: "Node") -> AuthMsgV4 | AuthRespV4 | None:
+        # basically readMsg
+        # super weird because this is from the destination or the recievers perspective
+        # so if the receiver src.dst is getting an AuthResp then they are definitely the initiator
         cleansed = msg
         if isinstance(cleansed, str):
             cleansed = bytes.fromhex(msg)
-        dec = read_handshake_msg(self.privK, cleansed)
+        dec, data = read_handshake_msg(self.privK, cleansed) # AuthMsgV4 | AuthRespV4 | None
+        
+        # Next, check to see if it is auth init or auth resp
+        if isinstance(dec, AuthMsgV4):
+            peer = self.addConnection(srcNode, init=False)
+            # Set the raw authInitData (to be used with secrets)
+            peer.authInitData = data
+            peer.otherNode.peers.get(self.ipaddr).authInitData = data
+            #
+            remoteRandomPubk = peer.handleAuthMsg(dec, self.privK)
+            if remoteRandomPubk is None:
+                print("Auth Msg Error Remote Random Pubk is None")
+            # print(f"AUTH INIT {self.ipaddr} → {fromaddr}: Remote Random Pubk: {bytes_to_hex(remoteRandomPubk)}")
+            pass
+        elif isinstance(dec, AuthRespV4):
+            peer = self.addConnection(srcNode, init=True)
+            # Set the raw authRespData (to be used with secrets)
+            peer.authRespData = data
+            peer.otherNode.peers.get(self.ipaddr).authRespData = data
+            #
+            remoteRandomPubk = peer.handleAuthResp(dec)
+            if remoteRandomPubk is None:
+                print("Auth Resp Error Remote Random Pubk is None")
+            if peer.authInitData is not None and peer.authRespData is not None:
+                peer.getSecrets()
+            if peer.otherNode.peers.get(self.ipaddr).authInitData is not None and peer.otherNode.peers.get(self.ipaddr).authRespData is not None:
+                peer.otherNode.peers.get(self.ipaddr).getSecrets()
+            # print(f"AUTH ACK {self.ipaddr} → {fromaddr}: Remote Random Pubk: {bytes_to_hex(remoteRandomPubk)}")
+        else:
+            pass
+        
         return dec
         
 

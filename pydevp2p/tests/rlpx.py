@@ -1,1 +1,68 @@
+import sys
+sys.path.append('/home/jkemp/cs700/pydevp2p/')
+
+from pydevp2p.utils import bytes_to_hex, hex_to_bytes
+from pydevp2p.rlpx.rlpx import read_handshake_msg
+from pydevp2p.crypto.ecies import generate_shared_secret
+from pydevp2p.crypto.utils import keccak256Hash
+from pydevp2p.crypto.secp256k1 import privtopub, unmarshal
+from pydevp2p.elliptic.curve import decode_pubkey
+
+from pydevp2p.rlpx.types import HandshakeState
 # placeholder for rlpx tests
+
+
+boot_priv_static_k = "3028271501873c4ecf501a2d3945dcb64ea3f27d6f163af45eb23ced9e92d85b"
+node1_priv_static_k = "4622d11b274848c32caf35dded1ed8e04316b1cde6579542f0510d86eb921298"
+node2_priv_static_k = "816efc6b019e8863c382fe94cefe8e408d53697815590f03ce0a5cbfdd5f23f2"
+node3_priv_static_k = "3fadc6b2fbd8c7cf1b2292b06ebfea903813b18b287dc29970a8a3aa253d757f"
+
+# AUTH INIT node3 -> bootnode
+auth_msg = "01b1044599709b6962feeaf20aa74fdd3c9df3f687b8a5ef262dc65f1bcf81656cb8e8ba65f1d6b3d7ca85fb71c8f09feaf622bf69e5f58ebb8d6ca6274c305123e1cff15926583da49b40eacf5cc4f8288831af1b8d6f10df2fcedeffa34b6556c7727c8974a794058d694e744ccc2e925d0e4ca67fde45e9776b41ce7047e49988c43e23b950ce10b8ed5d3b57ad57e44e965b8e40e124bac21e78ccf8f78d8b67a0f9699e9805d833f535fffeda29a1be7375ab9ab0904bed601c131e90ea799b1048a9453d3fea3028f199fce3438d46ebb721b4b4c2dc93eef49b2c8c70bbd41305347cb8f11218f7544eb6e4fa78db21b3b03bcb8f750bab878c5eb96bac13511f6327b4dd1946ed03c30c733979838b999a182c194b05d9dae85c21e571d92beac680f96e1577034c19ed28f3d5384f5645cf0e55015c4bba02a33cf4ad7e657da028586e9e4ba07a995c61f9d57d6e3b23745fd48f3f4b2cf428086df2323e1d0fed44dd58f345f758e09f8f9ebea3bbc9c8e7d5d22a8a2a231554a3ccb3d1e058bc50181759213b5ad7f9394d01f18791c6124ccb14de51507cf46ce3f95755921ea4796142f924b69abb8f4e9997"
+auth_msg_b = hex_to_bytes(auth_msg)
+
+# AUTH RESP bootnode -> node3
+auth_rsp = "01dd04c6a8c563dcc10ee4e3cece783c63ce36f5457abd3ff20f62a0a875ba9363c1362cef7d59481f21c089bd7b4a633db38088a8b8f3c64b2a48ee27dcff27331f2d16d64e67b1c3c9acbcabd8b4b18e2e634107767a646cb465d814b90823482ed9b07c1173cb54decee7554ca9cf0a61d62f1f3ef43c046b38115f9ad6c2139015b6b35934f4716a0de0783d963ff98d682479d17cc705762046caf5e7a883f52056fcd4095b3074826df6086c821dcdb112b970052532b7a196d344f5e786eb8869c41bc6fc45f6c942a250da0329ce5e530a657020fc77cdeb9f21a4e13ea857eac2ec92fee3713f83ca7b571c96b454fe65e8e6a2bd1a5485a1b611ff7fcd552b754e29a25c60b4388d0dc0e3c706e409b97339f02aee27a079db236666962c4f5375335701572fe83b66dda3671bbd6dac76ce6aae115365dfd76ab1851c1754302273af3af95d9ad2120593fe1c9a0b59754e022634930158b934eb89b8a263b8b635a4e2335bb3b256c505b7dcb189c178a8d0a4c1b8fa681f4b58f2cfaed210929f9d56d40fe4923160b54c8fab10a203d7428ada3a7f2727178fe624a8f73f476dd1fb887de3b7ebb7db9b388b9d270c98fded48055366311e4522a5e4b8d333ac8106ddf01cc3b2dbfde35cf449502cf358f9dd1e7bca3e32"
+auth_rsp_b = hex_to_bytes(auth_rsp)
+
+auth_msg_dec = read_handshake_msg(hex_to_bytes(boot_priv_static_k), auth_msg_b)
+print("auth_msg_dec:", auth_msg_dec)
+
+# Bootnode not yet supports this eph privk sharing
+auth_rsp_dec = read_handshake_msg(hex_to_bytes(node3_priv_static_k), auth_rsp_b)
+print("auth_rsp_dec:", auth_rsp_dec)
+
+node3_rand_priv_k = hex_to_bytes(auth_msg_dec.RandomPrivKey)
+boot_rand_pub_k = hex_to_bytes(auth_rsp_dec.RandomPubkey)
+
+print("node3_rand_priv_k:", node3_rand_priv_k)
+print("boot_rand_pub_k:", boot_rand_pub_k)
+
+ecdhe_secret = generate_shared_secret(boot_rand_pub_k, node3_rand_priv_k)
+print("ecdhe_secret:", ecdhe_secret)
+
+shared_secret = keccak256Hash(ecdhe_secret + keccak256Hash(hex_to_bytes(auth_rsp_dec.Nonce + auth_msg_dec.Nonce)))
+print("shared_secret:", shared_secret)
+
+# Handshake state from bootnodes perspective
+bootnode_handshake_state = HandshakeState(False)
+bootnode_handshake_state.handleAuthMsg(auth_msg_dec, hex_to_bytes(boot_priv_static_k))
+bootnode_handshake_state.respNonce = hex_to_bytes(auth_rsp_dec.Nonce)
+print("bootnode_handshake_state:", bootnode_handshake_state)
+
+
+# Handshake state from node3 perspective
+node3_handshake_state = HandshakeState(True, privtopub(hex_to_bytes(boot_priv_static_k)))
+node3_handshake_state.handleAuthResp(auth_rsp_dec)
+node3_handshake_state.randomPrivk = node3_rand_priv_k
+node3_handshake_state.initNonce = hex_to_bytes(auth_msg_dec.Nonce)
+
+print("node3_handshake_state:", node3_handshake_state)
+
+secrets = node3_handshake_state.secrets(auth_msg_b, auth_rsp_b)
+print("secrets:", secrets)
+
+node3_rand_pub_k = privtopub(node3_rand_priv_k)
+print("node3_rand_pub_k:", bytes_to_hex(node3_rand_pub_k))
+print("node3_rand_pub_k:", bytes_to_hex(bootnode_handshake_state.remoteRandomPubk))
+# decode_pubkey

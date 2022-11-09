@@ -22,7 +22,7 @@ def parse_auth_type(authmsg: list[bytes]) -> AuthMsgV4 | AuthRespV4 | None:
         return AuthRespV4(authmsg)
     return None
 
-def get_secrets(h: HandshakeState, authData: bytes, AuthRespData: bytes):
+def get_secrets(h: HandshakeState, authData: bytes, AuthRespData: bytes) -> Secrets | None:
     """Called after a successful handshake is completed
     
     Extracts all the information from the shared handshake values
@@ -53,15 +53,15 @@ def get_secrets(h: HandshakeState, authData: bytes, AuthRespData: bytes):
     
     # 2) Derives the shared-secret from the ephermeral key agreement
     # .... shared-secret = keccak256hash( ephemeral-key, keccak256hash( respNonce, initNonce ) )
-    shared_secret = keccak256Hash(ephemeral_key, keccak256Hash(h.respNonce, h.initNonce))
+    shared_secret = keccak256Hash(ephemeral_key + keccak256Hash(h.respNonce + h.initNonce))
     
     # 3) Calculate the aes-secret using the hash of both the ephemeral-key and shared-secret
     # .... aes-secret = keccak256hash( ephemeral-secret, shared-secret )
-    aes_secret = keccak256Hash(ephemeral_key, shared_secret)
+    aes_secret = keccak256Hash(ephemeral_key + shared_secret)
     
     # 4) Calculate the mac-secret with the hash of both the ephemeral-key and aes-key
     # .... mac-secret = keccak256hash( ephemeral-secret, aes-secret )
-    mac_secret = keccak256Hash(ephemeral_key, aes_secret)
+    mac_secret = keccak256Hash(ephemeral_key + aes_secret)
     
     # 5) Lastly, calculate the Egress and Ingress MACs (depending on if initiator or not)
     s = Secrets(h.remotePubk, aes_secret, mac_secret)
@@ -79,7 +79,7 @@ def get_secrets(h: HandshakeState, authData: bytes, AuthRespData: bytes):
 
     return s
 
-def read_handshake_msg(privK: bytes, msg: bytes) -> AuthMsgV4 | AuthRespV4 | None:
+def read_handshake_msg(privK: bytes, msg: bytes) -> tuple[AuthMsgV4 | AuthRespV4 | None, bytes] | None:
     """readMsg reads an encrypted handshake message, decoding it into msg.
     The decoded output is either an:
     .. Auth Msg V4 (from the initiator)
@@ -118,8 +118,10 @@ def read_handshake_msg(privK: bytes, msg: bytes) -> AuthMsgV4 | AuthRespV4 | Non
         print(f"parse_auth_type(dec) readMsg(privK, msg) {e}")
         return
         
-    return auth
+    return (auth, msg[:len(prefix)+len(data)])
 
 
 # RLPx Frame Decryption Functions
 #######################################################################################
+
+

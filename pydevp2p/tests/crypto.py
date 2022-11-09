@@ -1,7 +1,10 @@
 from hashlib import sha256
 
+import sys
+sys.path.append('/home/jkemp/cs700/pydevp2p/')
 from pydevp2p.crypto.ecies import concatKDF
 from pydevp2p.rlpx.rlpx import read_handshake_msg
+from pydevp2p.crypto.params import ECIES_AES128_SHA256, ECIES_Params
 
 
 def TestKDF():
@@ -16,10 +19,12 @@ def TestKDF():
         # [64, bytes.fromhex("994747c75d2e887ba139cb552c23ced97f1679cadbc54784a4bda8040767ee1ac25fa9dcafa07c5784816090aacdaa23ff8e99075cced1eea25e1ca84fa2766d")]
     ]
     
+    params: ECIES_Params = ECIES_AES128_SHA256
+    
     for test in tests:
         length, desired_output = test
         print(length, desired_output)
-        hash = sha256.new()
+        hash = params.Hash.new()
         actual_output = concatKDF(hash, test_input, "".encode(), length)
         if actual_output != desired_output:
             print("TestKDF(): [FAILED]:", actual_output)
@@ -39,3 +44,6 @@ def TestDecrypt():
     if dec_auth_msg is not None and dec_ack_msg is not None:
         print("TestDecrypt(): [PASSED]")
     else: print("TestDecrypt(): [FAILED]")
+    
+TestKDF()
+TestDecrypt()

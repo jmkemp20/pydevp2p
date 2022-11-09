@@ -11,7 +11,7 @@ def verifyHash(fromHash, input: bytes):
     return outHash == fromHash
 
 def xor(a: bytes, b: bytes) -> bytes:
-    xor = b'' * len(a)
+    xor = bytearray(len(a))
     for i in range(len(a)):
         xor[i] = a[i] ^ b[i]
-    return xor
+    return bytes(xor)

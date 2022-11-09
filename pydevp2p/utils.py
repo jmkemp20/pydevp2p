@@ -10,5 +10,7 @@ def hex_to_bytes(hex: str, *, signed: bool = False) -> bytes:
 def bytes_to_int(b: bytes, *, signed: bool = False) -> int:
     return int.from_bytes(b, byteorder='big', signed=signed)
 
-def bytes_to_hex(b: bytes, *, signed: bool = False) -> str:
+def bytes_to_hex(b: bytes | None, *, signed: bool = False) -> str:
+    if not isinstance(b, bytes):
+        return "None"
     return hex(bytes_to_int(b, signed=signed))[2:]
