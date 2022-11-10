@@ -84,3 +84,21 @@ print()
 
 # xors = xor(src_secrets.mac, src_handshake.respNonce)
 # print("xors:", bytes_to_hex(xors))
+
+
+############################################################
+# RLPx Frame 10.1.0.10 → 10.1.1.10 (bootnode → node1)      #
+############################################################
+rlpx_msg_src, rlpx_msg_dst, rlpx_msg = ("10.1.0.10", "10.1.1.10", \
+    "006e46496c9308dbecb80b30e85f61ae2d66f0bd0a92f5b1e89c3ddf72cdf34579d106bb1ba2c2e7eb5e5eace81b0714c30a5bac06861c1fdd0fccd4e543fe679f38f28d1d545b902210931809824fe39287bdf2d319d27ac9286bd3c16038efb3a5f9a58846ab8ae6dbb59145f1e21ccb64acfbcf69eb3c017c11d01ae3b7e1f5b8a6094c9e555d42f8f1c20c7903758b5a060a2a1895d97cdf103615a45c01174af0a3f26909372a0fa9e626274503851068cd8d00012fa59311f50ef795a6a9463938b1806a7ef836a053d3f289ba")
+src_node, dst_node = all_nodes.get(rlpx_msg_src), all_nodes.get(rlpx_msg_dst)
+
+dec = dst_node.readRLPxMsg(hex_to_bytes(rlpx_msg), src_node)
+print(dec)
+
+############################################################
+# RLPx Frame 10.1.1.10 → 10.1.0.10 (node1 → bootnode)      #
+############################################################
+rlpx_msg_src, rlpx_msg_dst, rlpx_msg = ("10.1.1.10", "10.1.0.10", \
+    "006e46496c9308dbecb80b30e85f61aedcee07cf821b855e61fbe5fbc89afce779d106bb1ba2c2e7eb5e5eace81b0714c30a5bac06861c1fdd0fccd4e543fe679f38f28d1d545b902210931809824fe39287bdf2d319d27ac9286bd3c16038efb3a5f9a58846ab8ae6dbb59145f1e21ccb64acfbcf69eb3c017c11d01ae3b70ee2fbd1742db9f812910632affbb97348cbb22acfb74a600cddd56366c9ea443fe51caa7b0a92ffdd8c5ae37316d87b43fc710865eb883aa72139858901feffa6485907e7e902deabbff81886edfceed2")
+src_node, dst_node = all_nodes.get(rlpx_msg_src), all_nodes.get(rlpx_msg_dst)

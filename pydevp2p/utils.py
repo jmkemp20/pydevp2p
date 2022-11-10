@@ -14,3 +14,6 @@ def bytes_to_hex(b: bytes | None, *, signed: bool = False) -> str:
     if not isinstance(b, bytes):
         return "None"
     return hex(bytes_to_int(b, signed=signed))[2:]
+
+def read_uint24(b: bytes) -> int:
+    return b[2] | b[1] << 8 | b[0] << 16

@@ -2,7 +2,7 @@ from pydevp2p.crypto.ecies import generate_shared_secret
 from pydevp2p.crypto.params import ECIES_AES128_SHA256
 from pydevp2p.crypto.secp256k1 import privtopub, recover_pubk, signature_to_pubk, unmarshal
 from pydevp2p.crypto.utils import keccak256Hash, xor
-from pydevp2p.utils import bytes_to_hex, hex_to_bytes
+from pydevp2p.utils import bytes_to_hex, bytes_to_int, hex_to_bytes, read_uint24
 from Crypto.Hash import keccak
 from Crypto.Util import Counter 
 
@@ -280,6 +280,7 @@ class SessionState:
         header = data[:headerSize]
         if header is None:
             return None
+        print("header:", bytes_to_hex(header))
         
         # Verify header MAC. TODO
         # wantHeaderMac = self.ingressMac.computeHeader(header[:16])
@@ -288,17 +289,21 @@ class SessionState:
         #     return None
         
         # Decrypt the frame header to get the frame size
-        frameSize = self.dec.decrypt(header[:int(headerSize / 2)])
+        headerDec = self.dec.decrypt(header[:16])
+        frameSize = read_uint24(headerDec)
+        print("frameSize:", frameSize)
         
         # Frame size must be rounded up to 16 byte boundary for padding
         realSize = frameSize
         padding = frameSize % 16
         if padding > 0:
             realSize += 16 - padding
+        print("realSize:", realSize)
             
         # Read the frame content
-        frame = data[headerSize:headerSize + int(realSize)]
+        frame = data[headerSize:headerSize + realSize]
         if frame is None:
+            print("SessionState readFrame(data) Err frame is None")
             return None
         
         # Validate the frame MAC TODO

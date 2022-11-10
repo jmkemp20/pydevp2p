@@ -2,7 +2,7 @@
 from pydevp2p.rlpx.rlpx import read_handshake_msg
 from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, HandshakeState, Secrets, SessionState
 from pydevp2p.crypto.secp256k1 import privtopub
-from pydevp2p.utils import hex_to_bytes
+from rlp.codec import decode
 
 
 """
@@ -72,7 +72,28 @@ class PeerConnection:
             return None
         self.sessionState = SessionState(self.secrets)
         return self.secrets
-
+    
+    def readFrame(self, data: bytes) -> list[bytes] | None:
+        if not self.sessionState:
+            print("PeerConnection readFrame(): Err sessionState has not been established")
+            return None
+        
+        m = self.sessionState.readFrame(data)
+        if m is None:
+            print("PeerConnection readFrame(): Err Unable to decrypt frame")
+            return None
+        
+         # Decode the decrypted message m utilizing the RLP encoding schema    
+        dec = None
+        try:
+            dec = decode(m, strict=False)
+        except BaseException as e:
+            print(f"decode(m, strict=False) readMsg(privK, msg) {e}")
+            return
+        
+        return dec
+            
+        
 class Node:
     """
     An RLPx and/or Ethereum Node containing the private key and
@@ -138,6 +159,20 @@ class Node:
             pass
         
         return dec
+    
+    def readRLPxMsg(self, msg: bytes | str, srcNode: "Node" ) -> list[bytes] | None:
+        peer = self.peers.get(srcNode.ipaddr)
+        if peer is None:
+            print("Node readRLPxMsg(msg, srcNode) Err Unable to Find Peer Connection")
+            return None
+        
+        dec = peer.readFrame(msg)
+        if dec is None:
+            print("Node readRLPxMsg(msg, srcNode) Err Unable to read frame")
+            return None
+        
+        return dec
+            
         
 
 all_nodes: dict[str, Node] = {}
