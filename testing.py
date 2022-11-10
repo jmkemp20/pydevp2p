@@ -1,4 +1,5 @@
 #!/usr/bin/python
+from pydevp2p.crypto.secp256k1 import privtopub
 from pydevp2p.crypto.utils import xor
 from pydevp2p.rlpx.node import Node
 from pydevp2p.utils import bytes_to_hex, hex_to_bytes
@@ -11,20 +12,20 @@ node2_priv_static_k = "816efc6b019e8863c382fe94cefe8e408d53697815590f03ce0a5cbfd
 node3_priv_static_k = "3fadc6b2fbd8c7cf1b2292b06ebfea903813b18b287dc29970a8a3aa253d757f"
 
 all_nodes: dict[str, Node] = {
-    "192.168.2.20": Node("192.168.2.20", hex_to_bytes(boot_priv_static_k)),
-    "192.168.3.30": Node("192.168.3.30", hex_to_bytes(node1_priv_static_k)),
-    "192.168.4.40": Node("192.168.4.40", hex_to_bytes(node2_priv_static_k)),
-    "192.168.5.50": Node("192.168.5.50", hex_to_bytes(node3_priv_static_k))
+    "10.1.0.10": Node("10.1.0.10", hex_to_bytes(boot_priv_static_k)),
+    "10.1.1.10": Node("10.1.1.10", hex_to_bytes(node1_priv_static_k)),
+    "10.1.2.20": Node("10.1.2.20", hex_to_bytes(node2_priv_static_k)),
+    "10.1.3.30": Node("10.1.3.30", hex_to_bytes(node3_priv_static_k))
 }
 
 # NOTE currently we are not adding connections or known peers based on UDP discovery
 
 ############################################################
-# AUTH INIT 192.168.5.50 → 192.168.2.20 (node3 → bootnode) #
+# AUTH INIT 10.1.1.10 → 10.1.0.10 (node1 → bootnode) #
 ############################################################
 # .. given from LUA (src: str, dst: str, data: str)
-auth_init_src, auth_init_dst, auth_init_msg = ("192.168.5.50", "192.168.2.20", \
-    "01b104045179bdc8f94cf063368c706bcf1e63b6fc80386576c375376200f50fdea4e54b224996cc438ca748fc4acd4948f1c95b8118e5487f4205f174eaa6ea73f0c11d459b6dc035a9e81f3d48972cdd4cef845f9e0f2ebdb9bbeaa0de0caec972cc92b07013b5954d3146760be13e650367f32e3b4f0c6f24addf0ae827a8e8a5b16343c7fd09ea287ca5a08e6f3ac957a6429781b041ff80451f781a92a44056cdd599119cf5232f79be43428e0dc28ac4b8c8887ff740af6a65674433669a217febf7232dccd0b245dd3c48a474aaa1e5f3f60a9fafc8ab03375a379c9edb7fc03324ff070e308f3384bd5c0b278ca86bfafc8fc269a964da4a9c2e5265081bcdad3ecc42582480047c585d9652b845af0a6f136143ef256bce6e3a67912cfef04378f8e6c76319258dbae248d90e18e241d8829b31dde54153cdd602feb1041e4ec26b18cd8fd8f6f3708812f7f4d495c204b056fe8b3331b6d7f6d865a6ef03e603c2f021905560fb53f4c197707e5c1c80452c89c2dec5424a1e356fe26a67b6c6cb1429ef3f0813c96cd717d78eb12dcc0addc4fe17894abe69106f374d3b4221d3d279a0cbdcb9e405af6d28ddf9")
+auth_init_src, auth_init_dst, auth_init_msg = ("10.1.1.10", "10.1.0.10", \
+    "01b1045380d862109ae2b4fc80d629bed8f2c1ff1d962749372a7bea4a36873f5f07ffc035ed32e107f3c39fae236764c37cbb6d45d10088c4c24f23fec8e44e302dc7cb760be4df28aad92c5046ec7364859ec001bf39a92ce294a114ca42f35f5d1e1c3f25660f1e23b3bce9010863299e8a0634a49998adc106ede01ff51280fe97f17a228726cafcab8d1e23c988382d7bc5444100ee8f869bd1513d17fda3d8b94f979ef495258253587481485297c896605b3aad6bf44d18c73ef7528a56364d2bfd47c6d2b0f49fe6b7bf47b75a1c3d6b922ccc653c905ca3f7a00a47757f44a9cd59426f983abde8ecebe80fa6d3542209378436b3dbbb2cc4f7d3b9fa6d84a384f00929af02223a645c5f5cb8177d4d309c33b5d00484004dce04b4ef4c692fcfabaa786bcb5722da0000b47fd32d9f11763b529e8846c1fb628d9f37b18f475595fe1a20df5da8878a39ae50f06abd4472f66f8ded7035ff12d63b76f2107254fc655e37c413ebf2e5dce4f5c035dd3f9faed6f3985ef7a75a4d4b7be28f28240bb53ffea06247ba83ae40a4bd2526d480cda19a0b81b29b95ed103905a2721865e5ada16d8151bb160bc71810a9")
 
 # Get the Nodes via ip addr, if these do not exist (None) then these should added just because
 auth_init_src_node, auth_init_dst_node = all_nodes.get(auth_init_src), all_nodes.get(auth_init_dst)
@@ -46,10 +47,10 @@ msg = auth_init_dst_node.readHandshakeMsg(auth_init_msg, auth_init_src_node)
 # print()
 
 ############################################################
-# AUTH RESP 192.168.2.20 → 192.168.5.50 (bootnode → node3) #
+# AUTH RESP 10.1.0.10 → 10.1.1.10 (bootnode → node1) #
 ############################################################
-auth_resp_src, auth_resp_dst, auth_resp_msg = ("192.168.2.20", "192.168.5.50", \
-    "0178040810f833ac009138f61715372e66e2131569be96e5b8fb01683e89b39eedb761ee753f7955d42adeda6e4354f3f17c7322a64b7decea83678213c429e931e4be9affccf51dd0605fd049be282f3e881c1e046ae2e136e157402160bd2cfc14f90dec5545659145e357c8cd45338a4e4292ff98c19738c1c3f97eb6f0e2f1e69f091b7d855855069bf2bbaeb5bf65a17f68b54c7b80fcdb9038419a12b4fdca851a574eb6dd1f477b1654b6daf84f0461b74f26a03adf5cc29a7b0f40e26477ba6445d75bcc246d5fe02dc213ab9bb69172d72a827e9e452b747b5936b3f2bbed20a76adeee07ac97b079a4240d19c0c10bbd01867cfa170c07225062fe8ae6af2ab08759e9f4b6c8153fbd945320b2367e140dea79de9e21c3e2bcfe2f53c3e503057e26766742a39f71375ff7f394056d24647dfcfaae12d7631bc23710b0ff9f21b92b9cb6abda7927a9a1156d964b0e9327c9d9f0fa5194c120a9e31ca950691312056231b915e639709a7825fdf562c2ede47f52d8")
+auth_resp_src, auth_resp_dst, auth_resp_msg = ("10.1.0.10", "10.1.1.10", \
+    "0194043037a7d8c85e7adb71335d4e2252165565f29da413a3b479032286e277bdf0b628735362223fc78b692f7650dfcf5ea3e897901eb85cfaf09e161941c515742adfa26bf20c7f8580dea24349a4bda0fd8284ee1aa6ca7426f9e721ebbb1ab61df92d6bf6ef844f0f90b2f80d8b62dc2ad0a4eec0c89badaa6758ecdfcdd2566656eefc7edd284111d21df82577f07c0760994c144e4b95c8ee6ce93c56405212b2c0e519cbfe1aea2f5993be8ca04209edb84d71345caba4e46b846801b9a34da7ecf9868dd59f9982146e8a08a53ac6514ab42f10e05f93a5e854bdac7f54e93817a8933e6b61afff989d3d14eb6eeb8b90020d061fd9ccea2b3da1f63b967bada2cf5d6c84a7f557674a5f5bf5d5567c75e08f4bfef2c8932bc72cc634ab7f736606decb3e68c468b4885c330798629ffd9cbd99689dfc74b7437e283469df488a48482172635d50bcd90dfa5558feeabec9244fa7511483a15822aba2ad64b7afd0e4ee6d2b73a35854c7b805fedf29e134ae7786e05acfc47b90eb5274f31795102c1280f144c59188acaa6f13cb428e80")
 auth_resp_src_node, auth_resp_dst_node = all_nodes.get(auth_resp_src), all_nodes.get(auth_resp_dst)
 msg = auth_resp_dst_node.readHandshakeMsg(auth_resp_msg, auth_resp_src_node)
 
@@ -61,21 +62,21 @@ msg = auth_resp_dst_node.readHandshakeMsg(auth_resp_msg, auth_resp_src_node)
 # print(f"{auth_resp_src} → {auth_resp_dst}", msg)
 # print()
 
-# bootnode → node3
+# bootnode → node1
 src_handshake = auth_resp_src_node.peers.get(auth_resp_dst).handshakeState
-# node3 → bootnode
+# node1 → bootnode
 dst_handshake = auth_resp_dst_node.peers.get(auth_resp_src).handshakeState
 print("BOOTNODE")
 print(f"{auth_resp_src} → {auth_resp_dst}", src_handshake)
-print("NODE3")
+print("NODE1")
 print(f"{auth_resp_dst} → {auth_resp_src}", dst_handshake)
 print()
 
 
 print("Secrets")
-# # bootnode → node3
+# # bootnode → node1
 src_secrets = auth_resp_src_node.peers.get(auth_resp_dst).secrets
-# # node3 → bootnode
+# # node1 → bootnode
 dst_secrets = auth_resp_dst_node.peers.get(auth_resp_src).secrets
 print(f"{auth_resp_src} → {auth_resp_dst}", src_secrets)
 print(f"{auth_resp_dst} → {auth_resp_src}", dst_secrets)

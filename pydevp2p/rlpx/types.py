@@ -28,6 +28,15 @@ class AuthMsgV4:
         randPrivk = f"RandomPrivKey:\t{bytes_to_hex(self.RandomPrivKey)}"
         return f"AuthMsgV4:\n  {signature}\n  {initPubK}\n  {nonce}\n  {version}\n  {randPrivk}"
     
+    def getValues(self) -> dict[str, str]:
+        return {
+            "Signature": bytes_to_hex(self.Signature), 
+            "InitatorPubkey": bytes_to_hex(self.InitatorPubkey),
+            "Nonce": bytes_to_hex(self.Nonce),
+            "Version": bytes_to_hex(self.Version),
+            "RandomPrivKey": bytes_to_hex(self.RandomPrivKey)
+        }
+    
     @staticmethod
     def validate(msg: list[bytes]) -> False:
         if len(msg) < 4:
@@ -50,6 +59,14 @@ class AuthRespV4:
         version = f"Version:\t\t{bytes_to_hex(self.Version)}"
         randPrivk = f"RandomPrivKey:\t{bytes_to_hex(self.RandomPrivKey)}"
         return f"AuthRespV4:\n  {randPubKey}\n  {nonce}\n  {version}\n  {randPrivk}"
+        
+    def getValues(self) -> dict[str, str]:
+        return {
+            "RandomPubkey": bytes_to_hex(self.RandomPubkey), 
+            "Nonce": bytes_to_hex(self.Nonce),
+            "Version": bytes_to_hex(self.Version),
+            "RandomPrivKey": bytes_to_hex(self.RandomPrivKey)
+        }
     
     @staticmethod
     def validate(msg: list[bytes]) -> False:
@@ -213,7 +230,7 @@ class HashMAC:
     """HashMAC holds the state of the RLPx v4 MAC contraption"""
     def __init__(self) -> None:
         self.cipher = None
-        self.hash = None
+        self.hash = keccak.new(digest_bits=256)
         self.aesBuffer = [b'\x00'] * 16
         self.hashBuffer = [b'\x00'] * 32
         self.seedBuffer = [b'\x00'] * 32
@@ -240,11 +257,61 @@ class SessionState:
         # 0 IV because the key for encryption is ephemeral
         dec_ctr = Counter.new(self.params.BlockSize * 8, initial_value=0)
         self.dec = self.cipher.new(secrets.aes, self.params.Cipher.MODE_CTR, counter=dec_ctr)
-        self.egressMac = keccak.new(digest_bits=256)
-        self.ingressMac = keccak.new(digest_bits=256)
+        self.egressMac = HashMAC()
+        self.ingressMac = HashMAC()
         
-    def readFrame(self, data: bytes) -> bytes:
-        return
+    def readFrame(self, data: bytes) -> bytes | None:
+        """SessionState readFrame reads and decrypts message frames, which are all
+        messages that follow the initial handshake. A frame carries a single encrypted
+        message belonging to a capability. This function allows for both decrypting
+        and verification of frame data.
         
-    def writeFrame(self, code: int, data: bytes) -> bytes:
+        After decryption, the decrypted returned bytes are then RLP decoded and/or 
+        decompressed w/ SNAPPY
+
+        Args:
+            data (bytes): The encrypted message frame to be decrypted and verified
+
+        Returns:
+            bytes | None: The decrypted message frame or None if an error occurred
+        """
+        headerSize = 32
+        # Read the frame header
+        header = data[:headerSize]
+        if header is None:
+            return None
+        
+        # Verify header MAC. TODO
+        # wantHeaderMac = self.ingressMac.computeHeader(header[:16])
+        # if wantHeaderMac != header[16:]:
+        #     print("SessionState readFrame(data) Err Bad Header MAC")
+        #     return None
+        
+        # Decrypt the frame header to get the frame size
+        frameSize = self.dec.decrypt(header[:int(headerSize / 2)])
+        
+        # Frame size must be rounded up to 16 byte boundary for padding
+        realSize = frameSize
+        padding = frameSize % 16
+        if padding > 0:
+            realSize += 16 - padding
+            
+        # Read the frame content
+        frame = data[headerSize:headerSize + int(realSize)]
+        if frame is None:
+            return None
+        
+        # Validate the frame MAC TODO
+        # frameMAC = data[headerSize + int(realSize):headerSize + int(realSize) + 16]
+        # wantFrameMAC = self.ingressMac.computeFrame(frame)
+        # if wantFrameMAC != frameMAC:
+        #     print("SessionState readFrame(data) Err Bad Frame MAC")
+        #     return None
+        
+        # Decrypt the frame data
+        frameDec = self.dec.decrypt(frame)
+        return frameDec[:frameSize]
+        
+    def writeFrame(self, code: int, data: bytes) -> bytes | None:
+        # Place holder
         return
