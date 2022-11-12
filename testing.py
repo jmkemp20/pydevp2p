@@ -94,7 +94,7 @@ rlpx_msg_src, rlpx_msg_dst, rlpx_msg = ("10.1.0.10", "10.1.1.10", \
 src_node, dst_node = all_nodes.get(rlpx_msg_src), all_nodes.get(rlpx_msg_dst)
 
 dec = dst_node.readRLPxMsg(hex_to_bytes(rlpx_msg), src_node)
-# print(dec)
+print(dec)
 
 ############################################################
 # RLPx Frame 10.1.1.10 → 10.1.0.10 (node1 → bootnode)      #
@@ -103,6 +103,25 @@ rlpx_msg_src, rlpx_msg_dst, rlpx_msg = ("10.1.1.10", "10.1.0.10", \
     "006e46496c9308dbecb80b30e85f61aedcee07cf821b855e61fbe5fbc89afce779d106bb1ba2c2e7eb5e5eace81b0714c30a5bac06861c1fdd0fccd4e543fe679f38f28d1d545b902210931809824fe39287bdf2d319d27ac9286bd3c16038efb3a5f9a58846ab8ae6dbb59145f1e21ccb64acfbcf69eb3c017c11d01ae3b70ee2fbd1742db9f812910632affbb97348cbb22acfb74a600cddd56366c9ea443fe51caa7b0a92ffdd8c5ae37316d87b43fc710865eb883aa72139858901feffa6485907e7e902deabbff81886edfceed2")
 src_node, dst_node = all_nodes.get(rlpx_msg_src), all_nodes.get(rlpx_msg_dst)
 
+dec = dst_node.readRLPxMsg(hex_to_bytes(rlpx_msg), src_node)
+print(dec)
+
+############################################################
+# RLPx Frame 10.1.0.10 → 10.1.1.10 (bootnode → node1)      #
+############################################################
+rlpx_msg_src, rlpx_msg_dst, rlpx_msg = ("10.1.0.10", "10.1.1.10", \
+    "d7886d49fd10eceaa4af60bc2087be744cfa69645930768d37d49ebc003150c5aedbb43f06f2029e4a2f5af98e57f69c48e4a615f33f2c87edf7a9a7bf1da2cd2757ee68b8968f636fa014847639b7c9ec4b02d5fb0d434c29504d7c988159573003186b126592eb8d2f8f074dcdf3a2")
+src_node, dst_node = all_nodes.get(rlpx_msg_src), all_nodes.get(rlpx_msg_dst)
 
 dec = dst_node.readRLPxMsg(hex_to_bytes(rlpx_msg), src_node)
-# print(dec)
+print(dec)
+
+############################################################
+# RLPx Frame 10.1.1.10 → 10.1.0.10 (node1 → bootnode)      #
+############################################################
+rlpx_msg_src, rlpx_msg_dst, rlpx_msg = ("10.1.1.10", "10.1.0.10", \
+    "d7886d49fd10eceaa4af60bc2087be74c700c9a3d67a8b11c7b6e487ce794c43aedbb43f06f2029e4a2f5af98e57f69c48e4a615f33f2c87edf7a9a7bf1da2cd2757ee68b8968f636fa014847639b7c9ec4b02d5fb0d434c29504d7c98815957b81e61ffcc3a11c4922c5c21318e6901")
+src_node, dst_node = all_nodes.get(rlpx_msg_src), all_nodes.get(rlpx_msg_dst)
+
+dec = dst_node.readRLPxMsg(hex_to_bytes(rlpx_msg), src_node)
+print(dec)

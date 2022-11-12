@@ -1,13 +1,13 @@
-import struct
 from pydevp2p.crypto.ecies import generate_shared_secret
 from pydevp2p.crypto.params import ECIES_AES128_SHA256
-from pydevp2p.crypto.secp256k1 import privtopub, recover_pubk, signature_to_pubk, unmarshal
+from pydevp2p.crypto.secp256k1 import privtopub, recover_pubk, unmarshal
 from pydevp2p.crypto.utils import keccak256Hash, xor
-from pydevp2p.utils import bytes_to_hex, bytes_to_int, ceil16, hex_to_bytes, read_uint24
+from pydevp2p.utils import bytes_to_hex, ceil16, read_uint24
 from Crypto.Hash import keccak
 from Crypto.Util import Counter 
 from Crypto.Cipher import AES 
 from rlp.codec import decode
+import snappy
 
 # Handshake Relates Types / Classes
 
@@ -238,6 +238,42 @@ class RLPxCapabilityMsgv5:
     def __init__(self, code: int, msg: list[bytes]) -> None:
         self.code = code
         self.type = self.msg_types[code]
+        if code == 0:
+            protocolVersion, clientId, capabilities, listenPort, nodeKey, *self.other = msg
+            self.protocolVersion = protocolVersion[0]
+            self.clientId = clientId.decode("utf-8")
+            self.listenPort = listenPort.decode("utf-8") if len(listenPort) > 0 else "N/A"
+            self.nodeKey = nodeKey
+            self.capabilities = []
+            for capability in capabilities:
+                name = capability[0].decode("utf-8")
+                version = capability[1][0]
+                self.capabilities.append(f"{name}: {version}")
+            self.capabilities = ", ".join(self.capabilities)
+        elif code == 1:
+            self.reason = msg[0]
+            
+    def __str__(self) -> str:
+        ret = ""
+        for field in self.getValues():
+            ret += f"  {field}:  {self.getValues()[field]}\n"
+        return f"RLPxCapabilityMsgv5:\n{ret}"
+            
+    def getValues(self) -> dict[str, str]:
+        ret = {
+            "Type": self.type,
+            "Code": self.code,
+        }
+        if self.code == 0:
+            ret["ProtocolVersion"] = self.protocolVersion
+            ret["ClientId"] = self.clientId
+            ret["Capabilities"] = self.capabilities
+            ret["ListenPort"] = self.listenPort
+            ret["NodeKey"] = bytes_to_hex(self.nodeKey)
+        elif self.code == 1:
+            ret["Reason"] = self.reason
+        return ret
+            
         
     @staticmethod
     def validate(code: int, msg: list[bytes]) -> bool:
@@ -295,6 +331,7 @@ class SessionState:
         self.dec = AES.new(secrets.aes, self.params.Cipher.MODE_CTR, counter=dec_ctr)
         self.egressMac = HashMAC()
         self.ingressMac = HashMAC()
+        self.handshakeCompleted = False
         
     def _decryptHeader(self, headerData: bytes) -> bytes | None:
         if len(headerData) != 32:
@@ -334,8 +371,11 @@ class SessionState:
         message belonging to a capability. This function allows for both decrypting
         and verification of frame data.
         
-        After decryption, the decrypted returned bytes are then RLP decoded and/or 
-        decompressed w/ SNAPPY
+        https://github.com/ethereum/devp2p/blob/master/rlpx.md
+        
+        Hello: frame-data = msg-id || msg-data
+        All messages following Hello are compressed using the Snappy algorithm.
+        After: frame-data = msg-id || snappyCompress(msg-data)
 
         Args:
             data (bytes): The encrypted message frame to be decrypted and verified
@@ -359,23 +399,37 @@ class SessionState:
         
         # Decrypt and verify frame-ciphertext and frame-mac
         frame = self._decryptBody(data[headerSize:], readSize)
-        
-        # print("frame[:frameSize]:", bytes_to_hex(frame[:frameSize]))
+        print("frame[:frameSize]:", bytes_to_hex(frame[:frameSize]))
 
-        code = frame[0] - 128
-        print("code:", code)
+        # The first RLPx message after handshake should always be a Hello msg
+        if not self.handshakeCompleted:
+            code = frame[0] - 128
+            # print("code:", code)
+            
+            dec_frame = decode(frame[1:frameSize], strict=False)
+            if dec_frame is None:
+                print("SessionState readFrame(data) Err Unable to Decode Frame")
         
-        dec_frame = decode(frame[1:frameSize])
-        if dec_frame is None:
-            print("SessionState readFrame(data) Err Unable to Decode Frame")
+            if not RLPxCapabilityMsgv5.validate(code, dec_frame):
+                return None
+            self.handshakeCompleted = True
+            
+            capability_msg = RLPxCapabilityMsgv5(code, dec_frame)
+            return capability_msg
         
-        if not RLPxCapabilityMsgv5.validate(code, dec_frame):
-            return None
+        # Snappy Decompression
+        code, decompress = frame[0], snappy.decompress(frame[1:frameSize])
+        print(f"code: {code}, Decompressed:", bytes_to_hex(decompress))
         
-        capability_msg = RLPxCapabilityMsgv5(code, dec_frame)
+        # RLP Decoding
+        dec_decompress = decode(decompress, strict=False)
+        print("Decompressed Data:", dec_decompress)
         
-        # TODO The first byte is the CODE OF THE MESSAGE
-        return code, frame[1:frameSize]
+        # TODO This is now where each capability splits off and has their own messaging scheme
+        # .. Looks like there really is only ETH and SNAP caps in this network
+        # .. https://github.com/ethereum/devp2p/tree/master/caps
+        
+        return dec_decompress
         
     def writeFrame(self, code: int, data: bytes) -> bytes | None:
         # Place holder

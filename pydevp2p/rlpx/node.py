@@ -78,20 +78,12 @@ class PeerConnection:
             print("PeerConnection readFrame(): Err sessionState has not been established")
             return None
         
-        code, m = self.sessionState.readFrame(data)
-        if m is None:
-            print("PeerConnection readFrame(): Err Unable to decrypt frame")
+        msg = self.sessionState.readFrame(data)
+        if msg is None:
+            print("PeerConnection readFrame(): Err Unable to read frame")
             return None
         
-         # Decode the decrypted message m utilizing the RLP encoding schema    
-        dec = None
-        try:
-            dec = decode(m, strict=False)
-        except BaseException as e:
-            print(f"decode(m, strict=False) readMsg(privK, msg) {e}")
-            return
-        
-        return dec
+        return msg
             
         
 class Node:

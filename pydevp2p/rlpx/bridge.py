@@ -34,3 +34,21 @@ def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str) -> AuthMsgV4 | 
         return None
     
     return dec.getValues()
+
+def handleRLPxMsg(srcip: str, dstip: str, payload: str) -> AuthMsgV4 | AuthRespV4 | None:
+    src_node = all_nodes.get(srcip)
+    dst_node = all_nodes.get(dstip)
+    if src_node is None or dst_node is None:
+        return None
+    
+    dec = None
+    try:
+        dec = dst_node.readRLPxMsg(hex_to_bytes(payload), src_node)
+    except BaseException as e:
+        print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) {e}")
+        return None
+    if dec is None:
+        print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Unable to readHandshakeMsg()")
+        return None
+    
+    return dec.getValues()
