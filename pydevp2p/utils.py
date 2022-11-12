@@ -5,7 +5,7 @@ def int_to_bytes(i: int, *, signed: bool = False) -> bytes:
     return i.to_bytes(length, byteorder='big', signed=signed)
 
 def hex_to_bytes(hex: str, *, signed: bool = False) -> bytes:
-    return int_to_bytes(int(hex, 16), signed=signed)
+    return bytes.fromhex(hex)
 
 def bytes_to_int(b: bytes, *, signed: bool = False) -> int:
     return int.from_bytes(b, byteorder='big', signed=signed)
@@ -17,3 +17,6 @@ def bytes_to_hex(b: bytes | None, *, signed: bool = False) -> str:
 
 def read_uint24(b: bytes) -> int:
     return b[2] | b[1] << 8 | b[0] << 16
+
+def ceil16(x: int) -> int:
+    return x if x % 16 == 0 else x + 16 - (x % 16)

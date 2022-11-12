@@ -78,7 +78,7 @@ class PeerConnection:
             print("PeerConnection readFrame(): Err sessionState has not been established")
             return None
         
-        m = self.sessionState.readFrame(data)
+        code, m = self.sessionState.readFrame(data)
         if m is None:
             print("PeerConnection readFrame(): Err Unable to decrypt frame")
             return None

@@ -1,10 +1,13 @@
+import struct
 from pydevp2p.crypto.ecies import generate_shared_secret
 from pydevp2p.crypto.params import ECIES_AES128_SHA256
 from pydevp2p.crypto.secp256k1 import privtopub, recover_pubk, signature_to_pubk, unmarshal
 from pydevp2p.crypto.utils import keccak256Hash, xor
-from pydevp2p.utils import bytes_to_hex, bytes_to_int, hex_to_bytes, read_uint24
+from pydevp2p.utils import bytes_to_hex, bytes_to_int, ceil16, hex_to_bytes, read_uint24
 from Crypto.Hash import keccak
 from Crypto.Util import Counter 
+from Crypto.Cipher import AES 
+from rlp.codec import decode
 
 # Handshake Relates Types / Classes
 
@@ -38,7 +41,7 @@ class AuthMsgV4:
         }
     
     @staticmethod
-    def validate(msg: list[bytes]) -> False:
+    def validate(msg: list[bytes]) -> bool:
         if len(msg) < 4:
             return False
         if len(msg[0]) != SIG_LEN or len(msg[1]) != PUB_LEN or len(msg[2]) != SHA_LEN or len(msg[3]) != 1:
@@ -69,7 +72,7 @@ class AuthRespV4:
         }
     
     @staticmethod
-    def validate(msg: list[bytes]) -> False:
+    def validate(msg: list[bytes]) -> bool:
         if len(msg) < 3:
             return False
         if len(msg[0]) != PUB_LEN or len(msg[1]) != SHA_LEN or len(msg[2]) != 1:
@@ -226,6 +229,39 @@ class HandshakeState:
 # RLPx Frame Relates Types / Classes
 #######################################################################################
 
+class RLPxCapabilityMsgv5:
+    """First packet sent over the connection, and sent once by both sides. No other 
+    messages may be sent until a Hello is received. Implementations must ignore any 
+    additional list elements in Hello because they may be used by a future version."""
+    msg_types = ["Hello", "Disconnect", "Ping", "Pong"]
+    
+    def __init__(self, code: int, msg: list[bytes]) -> None:
+        self.code = code
+        self.type = self.msg_types[code]
+        
+    @staticmethod
+    def validate(code: int, msg: list[bytes]) -> bool:
+        if code < 0:
+            print("RLPxCapabilityMsgv5 validate(code, msg) Err Invalid Msg Code")
+            return False
+        if code > 3:
+            print("RLPxCapabilityMsgv5 validate(code, msg) Err Unsupported Msg Code")
+            return False
+        if code == 0 and len(msg) >= 5:
+            # Check valid Hello Msg
+            return True
+        elif code == 1 and len(msg) == 1:
+            # Check valid Disconnect Msg
+            return True
+        elif code == 1 and len(msg) == 1:
+            # Check valid Disconnect Msg
+            return True
+        elif len(msg) == 0:
+            # Check valid Ping/Pong Msg
+            return True
+        print("RLPxCapabilityMsgv5 validate(code, msg) Err Invalid Msg")
+        return False
+
 class HashMAC:
     """HashMAC holds the state of the RLPx v4 MAC contraption"""
     def __init__(self) -> None:
@@ -256,9 +292,41 @@ class SessionState:
         self.enc = self.cipher.new(secrets.aes, self.params.Cipher.MODE_CTR, counter=enc_ctr)
         # 0 IV because the key for encryption is ephemeral
         dec_ctr = Counter.new(self.params.BlockSize * 8, initial_value=0)
-        self.dec = self.cipher.new(secrets.aes, self.params.Cipher.MODE_CTR, counter=dec_ctr)
+        self.dec = AES.new(secrets.aes, self.params.Cipher.MODE_CTR, counter=dec_ctr)
         self.egressMac = HashMAC()
         self.ingressMac = HashMAC()
+        
+    def _decryptHeader(self, headerData: bytes) -> bytes | None:
+        if len(headerData) != 32:
+            print("SessionState _decryptHeader(headerData) Err Invalid headerData Len")
+            return None
+        
+        header_ciphertext = headerData[:16]
+        header_mac = headerData[16:]
+        
+        if len(header_mac) != 16:
+            print("SessionState _decryptHeader(headerData) Err Invalid MAC Len")
+            return None
+        
+        # TODO verify header_mac
+        
+        return self.dec.decrypt(header_ciphertext)
+    
+    def _decryptBody(self, bodyData: bytes, readSize: int) -> bytes | None:
+        if not len(bodyData) >= readSize + 16:
+            print("SessionState _decryptBody(bodyData, readSize) Err Insufficient Body Len")
+            return None
+        
+        frame_ciphertext = bodyData[:readSize]
+        frame_mac = bodyData[readSize: readSize + 16]
+        
+        if len(frame_mac) != 16:
+            print("SessionState _decryptBody(bodyData, readSize) Err Invalid MAC Len")
+            return None
+            
+        # TODO verify frame_mac
+        
+        return self.dec.decrypt(frame_ciphertext) 
         
     def readFrame(self, data: bytes) -> bytes | None:
         """SessionState readFrame reads and decrypts message frames, which are all
@@ -277,45 +345,37 @@ class SessionState:
         """
         headerSize = 32
         # Read the frame header
-        header = data[:headerSize]
-        if header is None:
-            return None
-        print("header:", bytes_to_hex(header))
+        header = self._decryptHeader(data[:headerSize])
+        # print("header:", header.hex(), bytes_to_int(header[:3]))
         
-        # Verify header MAC. TODO
-        # wantHeaderMac = self.ingressMac.computeHeader(header[:16])
-        # if wantHeaderMac != header[16:]:
-        #     print("SessionState readFrame(data) Err Bad Header MAC")
-        #     return None
         
-        # Decrypt the frame header to get the frame size
-        headerDec = self.dec.decrypt(header[:16])
-        frameSize = read_uint24(headerDec)
-        print("frameSize:", frameSize)
+        # Get the frame size from the first 3 bytes
+        frameSize = read_uint24(header)
+        # body_size = struct.unpack(b'>I', b'\x00' + header[:3])[0]
+        # print("body_size:", body_size, ceil16(body_size))
         
-        # Frame size must be rounded up to 16 byte boundary for padding
-        realSize = frameSize
-        padding = frameSize % 16
-        if padding > 0:
-            realSize += 16 - padding
-        print("realSize:", realSize)
-            
-        # Read the frame content
-        frame = data[headerSize:headerSize + realSize]
-        if frame is None:
-            print("SessionState readFrame(data) Err frame is None")
+        # Round up frame size to 16 byte boundary for padding
+        readSize = ceil16(frameSize)
+        
+        # Decrypt and verify frame-ciphertext and frame-mac
+        frame = self._decryptBody(data[headerSize:], readSize)
+        
+        # print("frame[:frameSize]:", bytes_to_hex(frame[:frameSize]))
+
+        code = frame[0] - 128
+        print("code:", code)
+        
+        dec_frame = decode(frame[1:frameSize])
+        if dec_frame is None:
+            print("SessionState readFrame(data) Err Unable to Decode Frame")
+        
+        if not RLPxCapabilityMsgv5.validate(code, dec_frame):
             return None
         
-        # Validate the frame MAC TODO
-        # frameMAC = data[headerSize + int(realSize):headerSize + int(realSize) + 16]
-        # wantFrameMAC = self.ingressMac.computeFrame(frame)
-        # if wantFrameMAC != frameMAC:
-        #     print("SessionState readFrame(data) Err Bad Frame MAC")
-        #     return None
+        capability_msg = RLPxCapabilityMsgv5(code, dec_frame)
         
-        # Decrypt the frame data
-        frameDec = self.dec.decrypt(frame)
-        return frameDec[:frameSize]
+        # TODO The first byte is the CODE OF THE MESSAGE
+        return code, frame[1:frameSize]
         
     def writeFrame(self, code: int, data: bytes) -> bytes | None:
         # Place holder
