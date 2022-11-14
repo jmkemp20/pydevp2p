@@ -1,7 +1,7 @@
 
 from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
 from pydevp2p.rlpx.rlpx import read_handshake_msg
-from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, HandshakeState, RLPxInitMsgv5, Secrets, SessionState
+from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, HandshakeState, RLPxP2PMsg, Secrets, SessionState
 from pydevp2p.crypto.secp256k1 import privtopub
 
 """
@@ -75,7 +75,7 @@ class PeerConnection:
         self.sessionState = SessionState(self.secrets)
         return self.secrets
     
-    def readFrame(self, data: bytes) -> RLPxInitMsgv5 | RLPxCapabilityMsg | None:
+    def readFrame(self, data: bytes) -> RLPxP2PMsg | RLPxCapabilityMsg | None:
         if not self.sessionState:
             print("PeerConnection readFrame(): Err sessionState has not been established")
             return None
@@ -154,7 +154,7 @@ class Node:
         
         return dec
     
-    def readRLPxMsg(self, msg: bytes | str, srcNode: "Node" ) -> RLPxInitMsgv5 | RLPxCapabilityMsg | None:
+    def readRLPxMsg(self, msg: bytes | str, srcNode: "Node" ) -> RLPxP2PMsg | RLPxCapabilityMsg | None:
         peer = self.peers.get(srcNode.ipaddr)
         if peer is None:
             print("Node readRLPxMsg(msg, srcNode) Err Unable to Find Peer Connection")
