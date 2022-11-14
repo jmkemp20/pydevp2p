@@ -17,23 +17,31 @@ all_nodes: dict[str, Node] = {
     "10.1.3.30": Node("10.1.3.30", hex_to_bytes(node3_priv_static_k))
 }
 
+cache = {
+    
+}
+
 def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str) -> AuthMsgV4 | AuthRespV4 | None:
     src_node = all_nodes.get(srcip)
     dst_node = all_nodes.get(dstip)
     if src_node is None or dst_node is None:
         return None
     
-    dec = None
-    try:
-        dec = dst_node.readHandshakeMsg(hex_to_bytes(payload), src_node)
-    except BaseException as e:
-        print(f"[BRIDGE] handleAuthMsg(srcip, dstip, payload) {e}")
-        return None
-    if dec is None:
-        print(f"[BRIDGE] handleAuthMsg(srcip, dstip, payload) Unable to readHandshakeMsg()")
-        return None
+    key = srcip + dstip + payload
+    ret = cache.get(key)
+    if not ret:
+        try:
+            dec = dst_node.readHandshakeMsg(hex_to_bytes(payload), src_node)
+        except BaseException as e:
+            print(f"[BRIDGE] handleAuthMsg(srcip, dstip, payload) {e}")
+            return None
+        if dec is None:
+            print(f"[BRIDGE] handleAuthMsg(srcip, dstip, payload) Unable to readHandshakeMsg()")
+            return None
+        ret = dec.getValues()
+        cache[key] = ret
     
-    return dec.getValues()
+    return ret
 
 def handleRLPxMsg(srcip: str, dstip: str, payload: str) -> AuthMsgV4 | AuthRespV4 | None:
     src_node = all_nodes.get(srcip)
@@ -41,14 +49,18 @@ def handleRLPxMsg(srcip: str, dstip: str, payload: str) -> AuthMsgV4 | AuthRespV
     if src_node is None or dst_node is None:
         return None
     
-    dec = None
-    try:
-        dec = dst_node.readRLPxMsg(hex_to_bytes(payload), src_node)
-    except BaseException as e:
-        print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) {e}")
-        return None
-    if dec is None:
-        print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Unable to readHandshakeMsg()")
-        return None
-    
-    return dec.getValues()
+    key = srcip + dstip + payload
+    ret = cache.get(key)
+    if not ret:
+        try:
+            dec = dst_node.readRLPxMsg(hex_to_bytes(payload), src_node)
+        except BaseException as e:
+            print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) {e}")
+            return None
+        if dec is None:
+            print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Unable to readHandshakeMsg()")
+            return None
+        ret = dec.getValues()
+        cache[key] = ret
+
+    return ret

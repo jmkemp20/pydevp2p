@@ -1,6 +1,7 @@
 
+from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
 from pydevp2p.rlpx.rlpx import read_handshake_msg
-from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, HandshakeState, Secrets, SessionState
+from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, HandshakeState, RLPxInitMsgv5, Secrets, SessionState
 from pydevp2p.crypto.secp256k1 import privtopub
 from rlp.codec import decode
 
@@ -46,6 +47,9 @@ class PeerConnection:
         if not initiator:
             # need to make sure there is a peer connection for the other node
             otherNode.addConnection(parentNode, True)
+            
+    def __str__(self) -> str:
+        return f"PeerConnection: {self.parentNode.ipaddr} → {self.otherNode.ipaddr}\n {self.handshakeState}\n {self.secrets}"
         
     def handleAuthMsg(self, msg: AuthMsgV4, privK: bytes) -> bytes | None:
         # Here we need to set the RandomPrivKey to the other side of the connection
@@ -62,7 +66,7 @@ class PeerConnection:
             otherHandshakeState = self.otherNode.peers.get(self.parentNode.ipaddr).handshakeState
             otherHandshakeState.respNonce = msg.Nonce
             if hasattr(msg, "RandomPrivKey"):
-                otherHandshakeState.randomPrivk = msg.RandomPrivKey 
+                otherHandshakeState.randomPrivk = msg.RandomPrivKey
         return self.handshakeState.handleAuthResp(msg)
     
     def getSecrets(self) -> Secrets | None:
@@ -73,7 +77,7 @@ class PeerConnection:
         self.sessionState = SessionState(self.secrets)
         return self.secrets
     
-    def readFrame(self, data: bytes) -> list[bytes] | None:
+    def readFrame(self, data: bytes) -> RLPxInitMsgv5 | RLPxCapabilityMsg | None:
         if not self.sessionState:
             print("PeerConnection readFrame(): Err sessionState has not been established")
             return None
@@ -152,13 +156,15 @@ class Node:
         
         return dec
     
-    def readRLPxMsg(self, msg: bytes | str, srcNode: "Node" ) -> list[bytes] | None:
+    def readRLPxMsg(self, msg: bytes | str, srcNode: "Node" ) -> RLPxInitMsgv5 | RLPxCapabilityMsg | None:
         peer = self.peers.get(srcNode.ipaddr)
         if peer is None:
             print("Node readRLPxMsg(msg, srcNode) Err Unable to Find Peer Connection")
             return None
-        
-        dec = peer.readFrame(msg)
+        cleansed = msg
+        if isinstance(cleansed, str):
+            cleansed = bytes.fromhex(msg)
+        dec = peer.readFrame(cleansed)
         if dec is None:
             print("Node readRLPxMsg(msg, srcNode) Err Unable to read frame")
             return None

@@ -1,13 +1,15 @@
+import snappy
+from Crypto.Cipher import AES
+from Crypto.Hash import keccak
+from Crypto.Util import Counter
+from rlp.codec import decode
+
 from pydevp2p.crypto.ecies import generate_shared_secret
 from pydevp2p.crypto.params import ECIES_AES128_SHA256
 from pydevp2p.crypto.secp256k1 import privtopub, recover_pubk, unmarshal
 from pydevp2p.crypto.utils import keccak256Hash, xor
+from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
 from pydevp2p.utils import bytes_to_hex, ceil16, read_uint24
-from Crypto.Hash import keccak
-from Crypto.Util import Counter 
-from Crypto.Cipher import AES 
-from rlp.codec import decode
-import snappy
 
 # Handshake Relates Types / Classes
 
@@ -31,14 +33,23 @@ class AuthMsgV4:
         randPrivk = f"RandomPrivKey:\t{bytes_to_hex(self.RandomPrivKey)}"
         return f"AuthMsgV4:\n  {signature}\n  {initPubK}\n  {nonce}\n  {version}\n  {randPrivk}"
     
-    def getValues(self) -> dict[str, str]:
-        return {
-            "Signature": bytes_to_hex(self.Signature), 
-            "InitatorPubkey": bytes_to_hex(self.InitatorPubkey),
-            "Nonce": bytes_to_hex(self.Nonce),
-            "Version": bytes_to_hex(self.Version),
-            "RandomPrivKey": bytes_to_hex(self.RandomPrivKey)
-        }
+    def getValues(self) -> list[str]:
+        return [
+            5,
+            f"Signature: {bytes_to_hex(self.Signature)}",
+            f"InitatorPubkey: {bytes_to_hex(self.InitatorPubkey)}",
+            f"Nonce: {bytes_to_hex(self.Nonce)}",
+            f"Version: {bytes_to_hex(self.Version)}",
+            f"RandomPrivKey: {bytes_to_hex(self.RandomPrivKey)}"
+        ]
+        
+        # return {
+        #     "Signature": bytes_to_hex(self.Signature), 
+        #     "InitatorPubkey": bytes_to_hex(self.InitatorPubkey),
+        #     "Nonce": bytes_to_hex(self.Nonce),
+        #     "Version": bytes_to_hex(self.Version),
+        #     "RandomPrivKey": bytes_to_hex(self.RandomPrivKey)
+        # }
     
     @staticmethod
     def validate(msg: list[bytes]) -> bool:
@@ -64,12 +75,19 @@ class AuthRespV4:
         return f"AuthRespV4:\n  {randPubKey}\n  {nonce}\n  {version}\n  {randPrivk}"
         
     def getValues(self) -> dict[str, str]:
-        return {
-            "RandomPubkey": bytes_to_hex(self.RandomPubkey), 
-            "Nonce": bytes_to_hex(self.Nonce),
-            "Version": bytes_to_hex(self.Version),
-            "RandomPrivKey": bytes_to_hex(self.RandomPrivKey)
-        }
+        return [
+            4,
+            f"RandomPubkey: {bytes_to_hex(self.RandomPubkey)}",
+            f"Nonce: {bytes_to_hex(self.Nonce)}",
+            f"Version: {bytes_to_hex(self.Version)}",
+            f"RandomPrivKey: {bytes_to_hex(self.RandomPrivKey)}"
+        ]
+        # return {
+        #     "RandomPubkey": bytes_to_hex(self.RandomPubkey), 
+        #     "Nonce": bytes_to_hex(self.Nonce),
+        #     "Version": bytes_to_hex(self.Version),
+        #     "RandomPrivKey": bytes_to_hex(self.RandomPrivKey)
+        # }
     
     @staticmethod
     def validate(msg: list[bytes]) -> bool:
@@ -153,11 +171,10 @@ class HandshakeState:
         self.remotePubk = unmarshal(msg.InitatorPubkey)
         
         #######################
-        # self.randomPrivk is generated here.....
+        # otherNode's self.randomPrivk is pulled here
         if hasattr(msg, "RandomPrivKey"):
             # This is actually the random priv key of the one who sent this message
             self.remoteRandomPrivk = msg.RandomPrivKey
-            print("remoteRandomPrivk pub:", bytes_to_hex(privtopub(self.remoteRandomPrivk)))
         #######################
         
         # Check the signature.
@@ -229,7 +246,7 @@ class HandshakeState:
 # RLPx Frame Relates Types / Classes
 #######################################################################################
 
-class RLPxCapabilityMsgv5:
+class RLPxInitMsgv5:
     """First packet sent over the connection, and sent once by both sides. No other 
     messages may be sent until a Hello is received. Implementations must ignore any 
     additional list elements in Hello because they may be used by a future version."""
@@ -255,23 +272,27 @@ class RLPxCapabilityMsgv5:
             
     def __str__(self) -> str:
         ret = ""
-        for field in self.getValues():
-            ret += f"  {field}:  {self.getValues()[field]}\n"
-        return f"RLPxCapabilityMsgv5:\n{ret}"
+        vals = self.getValues()
+        for i in range(1, len(vals)):
+            ret += f"  {vals[i]}\n"
+        return f"RLPxInitMsgv5:\n{ret}"
             
-    def getValues(self) -> dict[str, str]:
-        ret = {
-            "Type": self.type,
-            "Code": self.code,
-        }
+    def getValues(self) -> list[str]:
+        ret = [
+            2,
+            f"Type: {self.type}",
+            f"Code: {self.code}",
+        ]
         if self.code == 0:
-            ret["ProtocolVersion"] = self.protocolVersion
-            ret["ClientId"] = self.clientId
-            ret["Capabilities"] = self.capabilities
-            ret["ListenPort"] = self.listenPort
-            ret["NodeKey"] = bytes_to_hex(self.nodeKey)
+            ret.append(f"ProtocolVersion: {self.protocolVersion}")
+            ret.append(f"ClientId: {self.clientId}")
+            ret.append(f"Capabilities: {self.capabilities}")
+            ret.append(f"ListenPort: {self.listenPort}")
+            ret.append(f"NodeKey: {bytes_to_hex(self.nodeKey)}")
+            ret[0] = 7
         elif self.code == 1:
-            ret["Reason"] = self.reason
+            ret.append(f"Reason: {self.reason}")
+            ret[0] = 3
         return ret
             
         
@@ -319,7 +340,7 @@ class HashMAC:
 class SessionState:
     """Contains the session keys"""
     def __init__(self, secrets: Secrets) -> None:
-        self.params = ECIES_AES128_SHA256
+        self.params = ECIES_AES128_SHA256()
         self.ctr = Counter
         self.cipher = self.params.Cipher
         # all you need to call instead of .XORKeyStream is just .decrypt(ct) or .encrypt(m)
@@ -351,7 +372,7 @@ class SessionState:
     
     def _decryptBody(self, bodyData: bytes, readSize: int) -> bytes | None:
         if not len(bodyData) >= readSize + 16:
-            print("SessionState _decryptBody(bodyData, readSize) Err Insufficient Body Len")
+            print(f"SessionState _decryptBody(bodyData, readSize) Err Insufficient Body Len {len(bodyData)}, Expected {len(bodyData)} >= {readSize + 16}")
             return None
         
         frame_ciphertext = bodyData[:readSize]
@@ -365,7 +386,7 @@ class SessionState:
         
         return self.dec.decrypt(frame_ciphertext) 
         
-    def readFrame(self, data: bytes) -> bytes | None:
+    def readFrame(self, data: bytes) -> RLPxInitMsgv5 | RLPxCapabilityMsg | None:
         """SessionState readFrame reads and decrypts message frames, which are all
         messages that follow the initial handshake. A frame carries a single encrypted
         message belonging to a capability. This function allows for both decrypting
@@ -386,20 +407,25 @@ class SessionState:
         headerSize = 32
         # Read the frame header
         header = self._decryptHeader(data[:headerSize])
-        # print("header:", header.hex(), bytes_to_int(header[:3]))
-        
+        print("header:", header.hex())
+        if header is None:
+            print(f"SessionState readFrame(data) Err Unable to Decrypt Header: {bytes_to_hex(data[:headerSize])}")
+            return None
         
         # Get the frame size from the first 3 bytes
         frameSize = read_uint24(header)
-        # body_size = struct.unpack(b'>I', b'\x00' + header[:3])[0]
-        # print("body_size:", body_size, ceil16(body_size))
+        # frameSize = struct.unpack(b'>I', b'\x00' + header[:3])[0]
+        print("frameSize:", frameSize, ceil16(frameSize))
         
         # Round up frame size to 16 byte boundary for padding
         readSize = ceil16(frameSize)
         
         # Decrypt and verify frame-ciphertext and frame-mac
         frame = self._decryptBody(data[headerSize:], readSize)
-        print("frame[:frameSize]:", bytes_to_hex(frame[:frameSize]))
+        # print("frame[:frameSize]:", bytes_to_hex(frame[:frameSize]))
+        if frame is None:
+            print(f"SessionState readFrame(data) Err Unable to Decrypt Frame: {bytes_to_hex(data[headerSize:])}")
+            return None
 
         # The first RLPx message after handshake should always be a Hello msg
         if not self.handshakeCompleted:
@@ -410,26 +436,33 @@ class SessionState:
             if dec_frame is None:
                 print("SessionState readFrame(data) Err Unable to Decode Frame")
         
-            if not RLPxCapabilityMsgv5.validate(code, dec_frame):
+            if not RLPxInitMsgv5.validate(code, dec_frame):
+                print(f"SessionState readFrame(data) Err Unable to Validate RLPxInitMsgv5 {code}: {dec_frame}")
                 return None
             self.handshakeCompleted = True
             
-            capability_msg = RLPxCapabilityMsgv5(code, dec_frame)
-            return capability_msg
+            return RLPxInitMsgv5(code, dec_frame)
         
         # Snappy Decompression
         code, decompress = frame[0], snappy.decompress(frame[1:frameSize])
-        print(f"code: {code}, Decompressed:", bytes_to_hex(decompress))
+        # print(f"code: {code}, Decompressed:", bytes_to_hex(decompress)) 
         
         # RLP Decoding
         dec_decompress = decode(decompress, strict=False)
-        print("Decompressed Data:", dec_decompress)
+        # print("Decompressed Data:", dec_decompress)
+        
+        # check for code 1,2,3 (DISCONNECT, PING, PONG)
+        if code == 1 or code == 2 or code == 3:
+            if not RLPxInitMsgv5.validate(code, dec_decompress):
+                print(f"SessionState readFrame(data) Err Unable to Validate RLPxInitMsgv5 {code}: {dec_decompress}")
+                return None
+            return RLPxInitMsgv5(code, dec_decompress)
         
         # TODO This is now where each capability splits off and has their own messaging scheme
         # .. Looks like there really is only ETH and SNAP caps in this network
         # .. https://github.com/ethereum/devp2p/tree/master/caps
         
-        return dec_decompress
+        return RLPxCapabilityMsg(dec_decompress)
         
     def writeFrame(self, code: int, data: bytes) -> bytes | None:
         # Place holder
