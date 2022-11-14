@@ -1,9 +1,8 @@
 
 # This file is a bridge to handle payload data incoming from a LUA dissector
-from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
 from pydevp2p.rlpx.node import Node
-from pydevp2p.rlpx.handshake import AuthMsgV4, AuthRespV4
-from pydevp2p.rlpx.types import RLPxP2PMsg
+from pydevp2p.rlpx.rlpx import FrameHeader
+from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, RLPxP2PMsg, RLPxCapabilityMsg
 from pydevp2p.utils import hex_to_bytes
 
 
@@ -45,7 +44,7 @@ def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str) -> AuthMsgV4 | 
     
     return ret
 
-def handleRLPxMsg(srcip: str, dstip: str, payload: str) -> RLPxP2PMsg | RLPxCapabilityMsg | None:
+def handleRLPxMsg(srcip: str, dstip: str, payload: str) -> tuple[FrameHeader, RLPxP2PMsg | RLPxCapabilityMsg | None, str | None] | None:
     src_node = all_nodes.get(srcip)
     dst_node = all_nodes.get(dstip)
     if src_node is None or dst_node is None:
@@ -55,14 +54,19 @@ def handleRLPxMsg(srcip: str, dstip: str, payload: str) -> RLPxP2PMsg | RLPxCapa
     ret = cache.get(key)
     if not ret:
         try:
-            dec = dst_node.readRLPxMsg(hex_to_bytes(payload), src_node)
+            decHeader, decBody = dst_node.readRLPxMsg(hex_to_bytes(payload), src_node)
         except BaseException as e:
             print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) {e}")
             return None
-        if dec is None:
-            print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Unable to readHandshakeMsg()")
+        if decHeader is None:
+            print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Err Frame Header None")
             return None
-        ret = dec.getValues()
+        elif decBody is None:
+            print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Err Frame Body None")
+            return decHeader, None, None
+        ret = (decHeader, decBody.getValues(), decBody.type)
         cache[key] = ret
 
-    return ret
+    frameHeader, frameBody, frameType = ret
+
+    return frameHeader, frameBody, frameType

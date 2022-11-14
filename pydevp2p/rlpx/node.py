@@ -1,7 +1,8 @@
 
 from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
-from pydevp2p.rlpx.handshake import AuthMsgV4, AuthRespV4, HandshakeState, Secrets, read_handshake_msg
-from pydevp2p.rlpx.types import RLPxP2PMsg, SessionState
+from pydevp2p.rlpx.handshake import HandshakeState, Secrets, read_handshake_msg
+from pydevp2p.rlpx.rlpx import FrameHeader, SessionState
+from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, RLPxP2PMsg, RLPxCapabilityMsg
 from pydevp2p.crypto.secp256k1 import privtopub
 
 """
@@ -75,17 +76,20 @@ class PeerConnection:
         self.sessionState = SessionState(self.secrets)
         return self.secrets
     
-    def readFrame(self, data: bytes) -> RLPxP2PMsg | RLPxCapabilityMsg | None:
+    def readFrame(self, data: bytes) -> tuple[FrameHeader, RLPxP2PMsg | RLPxCapabilityMsg | None] | None:
         if not self.sessionState:
-            print("PeerConnection readFrame(): Err sessionState has not been established")
+            print("PeerConnection readFrame(data): Err sessionState has not been established")
             return None
         
-        msg = self.sessionState.readFrame(data)
-        if msg is None:
-            print("PeerConnection readFrame(): Err Unable to read frame")
+        frameHeader, frameBody = self.sessionState.readFrame(data)
+        if frameHeader is None:
+            print("PeerConnection readFrame(data): Err Unable to Read Frame Header")
             return None
+        elif frameBody is None:
+            print("PeerConnection readFrame(data): Err Unable to Read Frame Body")
+            return frameHeader, None
         
-        return msg
+        return frameHeader, frameBody
             
         
 class Node:
@@ -154,20 +158,25 @@ class Node:
         
         return dec
     
-    def readRLPxMsg(self, msg: bytes | str, srcNode: "Node" ) -> RLPxP2PMsg | RLPxCapabilityMsg | None:
+    def readRLPxMsg(self, msg: bytes | str, srcNode: "Node" ) -> tuple[FrameHeader, RLPxP2PMsg | RLPxCapabilityMsg | None] | None:
         peer = self.peers.get(srcNode.ipaddr)
         if peer is None:
             print("Node readRLPxMsg(msg, srcNode) Err Unable to Find Peer Connection")
             return None
+        
         cleansed = msg
         if isinstance(cleansed, str):
             cleansed = bytes.fromhex(msg)
-        dec = peer.readFrame(cleansed)
-        if dec is None:
-            print("Node readRLPxMsg(msg, srcNode) Err Unable to read frame")
+            
+        frameHeader, frameBody = peer.readFrame(cleansed)
+        if frameHeader is None:
+            print("Node readRLPxMsg(msg, srcNode): Err Unable to Read Frame Header")
             return None
+        elif frameBody is None:
+            print("Node readRLPxMsg(msg, srcNode): Err Unable to Read Frame Body")
+            return frameHeader, None
         
-        return dec
+        return frameHeader, frameBody
             
         
 

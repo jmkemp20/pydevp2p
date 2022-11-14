@@ -4,94 +4,10 @@ from rlp.codec import decode
 from pydevp2p.crypto.ecies import decrypt, generate_shared_secret
 from pydevp2p.crypto.secp256k1 import recover_pubk, unmarshal
 from pydevp2p.crypto.utils import keccak256Hash, xor
+from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4
 from pydevp2p.utils import bytes_to_hex, bytes_to_int
 
 # Handshake Relates Types / Classes
-
-SSK_LEN = 16 # max shared key length (pubkey) / 2
-SIG_LEN = 65 # elliptic S256 secp256k1
-PUB_LEN = 64 # 512 bit pubkey in uncompressed format
-SHA_LEN = 32 # Hash Length (for nonce, etc)
-
-class AuthMsgV4:
-    """RLPx v4 handshake auth (defined in EIP-8)."""
-    def __init__(self, msg: list[bytes]) -> None:
-        # Should call validate before creating this object
-        self.Signature, self.InitatorPubkey, self.Nonce, self.Version, *extra = msg
-        self.RandomPrivKey = extra[0] if len(extra) > 0 else None
-            
-    def __str__(self) -> str:
-        signature = f"Signature:\t\t{bytes_to_hex(self.Signature)}"
-        initPubK = f"InitatorPubkey:\t{bytes_to_hex(self.InitatorPubkey)}"
-        nonce = f"Nonce:\t\t{bytes_to_hex(self.Nonce)}"
-        version = f"Version:\t\t{bytes_to_hex(self.Version)}"
-        randPrivk = f"RandomPrivKey:\t{bytes_to_hex(self.RandomPrivKey)}"
-        return f"AuthMsgV4:\n  {signature}\n  {initPubK}\n  {nonce}\n  {version}\n  {randPrivk}"
-    
-    def getValues(self) -> list[str]:
-        return [
-            5,
-            f"Signature: {bytes_to_hex(self.Signature)}",
-            f"InitatorPubkey: {bytes_to_hex(self.InitatorPubkey)}",
-            f"Nonce: {bytes_to_hex(self.Nonce)}",
-            f"Version: {bytes_to_hex(self.Version)}",
-            f"RandomPrivKey: {bytes_to_hex(self.RandomPrivKey)}"
-        ]
-        
-        # return {
-        #     "Signature": bytes_to_hex(self.Signature), 
-        #     "InitatorPubkey": bytes_to_hex(self.InitatorPubkey),
-        #     "Nonce": bytes_to_hex(self.Nonce),
-        #     "Version": bytes_to_hex(self.Version),
-        #     "RandomPrivKey": bytes_to_hex(self.RandomPrivKey)
-        # }
-    
-    @staticmethod
-    def validate(msg: list[bytes]) -> bool:
-        if len(msg) < 4:
-            return False
-        if len(msg[0]) != SIG_LEN or len(msg[1]) != PUB_LEN or len(msg[2]) != SHA_LEN or len(msg[3]) != 1:
-            return False
-        return True
-    
-    
-class AuthRespV4:
-    """RLPx v4 handshake response (defined in EIP-8)."""
-    def __init__(self, msg: list[bytes]) -> None:
-        # Should call validate before creating this object
-        self.RandomPubkey, self.Nonce, self.Version, *extra = msg
-        self.RandomPrivKey = extra[0] if len(extra) > 0 else None
-            
-    def __str__(self) -> str:
-        randPubKey = f"RandomPubkey:\t\t{bytes_to_hex(self.RandomPubkey)}"
-        nonce = f"Nonce:\t\t{bytes_to_hex(self.Nonce)}"
-        version = f"Version:\t\t{bytes_to_hex(self.Version)}"
-        randPrivk = f"RandomPrivKey:\t{bytes_to_hex(self.RandomPrivKey)}"
-        return f"AuthRespV4:\n  {randPubKey}\n  {nonce}\n  {version}\n  {randPrivk}"
-        
-    def getValues(self) -> dict[str, str]:
-        return [
-            4,
-            f"RandomPubkey: {bytes_to_hex(self.RandomPubkey)}",
-            f"Nonce: {bytes_to_hex(self.Nonce)}",
-            f"Version: {bytes_to_hex(self.Version)}",
-            f"RandomPrivKey: {bytes_to_hex(self.RandomPrivKey)}"
-        ]
-        # return {
-        #     "RandomPubkey": bytes_to_hex(self.RandomPubkey), 
-        #     "Nonce": bytes_to_hex(self.Nonce),
-        #     "Version": bytes_to_hex(self.Version),
-        #     "RandomPrivKey": bytes_to_hex(self.RandomPrivKey)
-        # }
-    
-    @staticmethod
-    def validate(msg: list[bytes]) -> bool:
-        if len(msg) < 3:
-            return False
-        if len(msg[0]) != PUB_LEN or len(msg[1]) != SHA_LEN or len(msg[2]) != 1:
-            return False
-        return True
-    
     
 class Secrets:
     """

@@ -1,33 +1,4 @@
-from pydevp2p.utils import bytes_to_hex, bytes_to_int
-
-
-class RLPxCapabilityMsg:
-    """
-    _summary
-    """
-    def __init__(self, type: str, code: int, msg: list[bytes], code_types: list, msg_types: dict) -> None:
-        self.type = type
-        self.code = code
-        self.msg = msg
-        self.code_types = code_types
-        self.msg_types = msg_types
-        
-        self.d_msg = deserialize_rlp(msg, self.msg_types.get(self.code_types[code]))
-        print()
-        print(f"{type.upper()}: {code}, {self.code_types[code]}: {self.d_msg}")
-        return
-            
-    def __str__(self) -> str:
-        ret = ""
-        vals = self.getValues()
-        for i in range(1, len(vals)):
-            ret += f"  {vals[i]}\n"
-        return f"RLPxCapabilityMsg:\n{ret}"
-    
-    def getValues(self):
-        ret = [len(self.d_msg)]
-        ret.extend(self.d_msg)
-        return ret
+from pydevp2p.rlpx.types import RLPxCapabilityMsg
     
 class EthCapabilitiy(RLPxCapabilityMsg):
     """_summary_
@@ -97,39 +68,3 @@ def get_rlpx_capability_msg(code: int, msg: list[bytes]) -> RLPxCapabilityMsg | 
     
     print(f"get_rlpx_capability_msg(code, msg) Err Unknown Capability Msg: {code}, {msg}") 
     return RLPxCapabilityMsg(msg)
-
-def deserialize_rlp(msg: list, structure: list) -> list:
-    a = [None] * len(msg)
-    def get_leaves(msg: list | bytes):
-        # base case
-        if not isinstance(msg, list):
-            if len(msg) == 0:
-                return "N/A"
-            elif len(msg) <= 8: # 8 bytes (64bit)
-                return bytes_to_int(msg)
-            else:
-                return bytes_to_hex(msg)
-        sub = []
-        for child in msg:
-            sub.append(get_leaves(child))
-        return sub
-    for i in range(len(msg)):
-        a[i] = f"{structure[i]}: {get_leaves(msg[i])}"
-    return a
-    
-def get_shape(msg: list):
-    a = [None] * len(msg)
-    def get_leaves(msg: list | bytes):
-        # base case
-        if not isinstance(msg, list):
-            return 1
-        count = 0
-        for child in msg:
-            count = count + get_leaves(child)
-        return count
-    for i in range(len(msg)):
-        a[i] = get_leaves(msg[i])
-    return a
-    
-
-    
