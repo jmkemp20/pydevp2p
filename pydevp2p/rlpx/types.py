@@ -6,9 +6,9 @@ from rlp.codec import decode
 
 from pydevp2p.crypto.ecies import generate_shared_secret
 from pydevp2p.crypto.params import ECIES_AES128_SHA256
-from pydevp2p.crypto.secp256k1 import privtopub, recover_pubk, unmarshal
+from pydevp2p.crypto.secp256k1 import recover_pubk, unmarshal
 from pydevp2p.crypto.utils import keccak256Hash, xor
-from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
+from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg, get_rlpx_capability_msg
 from pydevp2p.utils import bytes_to_hex, ceil16, read_uint24
 
 # Handshake Relates Types / Classes
@@ -407,7 +407,7 @@ class SessionState:
         headerSize = 32
         # Read the frame header
         header = self._decryptHeader(data[:headerSize])
-        print("header:", header.hex())
+        # print("header:", header.hex())
         if header is None:
             print(f"SessionState readFrame(data) Err Unable to Decrypt Header: {bytes_to_hex(data[:headerSize])}")
             return None
@@ -415,7 +415,7 @@ class SessionState:
         # Get the frame size from the first 3 bytes
         frameSize = read_uint24(header)
         # frameSize = struct.unpack(b'>I', b'\x00' + header[:3])[0]
-        print("frameSize:", frameSize, ceil16(frameSize))
+        # print("frameSize:", frameSize, ceil16(frameSize))
         
         # Round up frame size to 16 byte boundary for padding
         readSize = ceil16(frameSize)
@@ -461,8 +461,8 @@ class SessionState:
         # TODO This is now where each capability splits off and has their own messaging scheme
         # .. Looks like there really is only ETH and SNAP caps in this network
         # .. https://github.com/ethereum/devp2p/tree/master/caps
-        
-        return RLPxCapabilityMsg(dec_decompress)
+        print("code:", code)
+        return get_rlpx_capability_msg(dec_decompress)
         
     def writeFrame(self, code: int, data: bytes) -> bytes | None:
         # Place holder
