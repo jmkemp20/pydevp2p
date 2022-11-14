@@ -12,12 +12,12 @@ def inv(a, n):
         lm, low, hm, high = nm, new, lm, low
     return lm % n
 
-def from_jacobian(p):
+def from_jacobian(p: tuple[int, int, int]) -> tuple[int, int]:
     z = inv(p[2], secp256k1.P)
     return ((p[0] * z**2) % secp256k1.P, (p[1] * z**3) % secp256k1.P)
 
-def fast_multiply(a, n):
+def fast_multiply(a: tuple[int, int], n: int):
     return from_jacobian(jacobian_multiply(to_jacobian(a), n))
 
-def fast_add(a, b):
+def fast_add(a: tuple[int, int], b: tuple[int, int]):
     return from_jacobian(jacobian_add(to_jacobian(a), to_jacobian(b)))

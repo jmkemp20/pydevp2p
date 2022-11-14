@@ -1,8 +1,6 @@
 #!/usr/bin/python
-from pydevp2p.crypto.secp256k1 import privtopub
-from pydevp2p.crypto.utils import xor
 from pydevp2p.rlpx.node import Node
-from pydevp2p.utils import bytes_to_hex, hex_to_bytes
+from pydevp2p.utils import hex_to_bytes
 
 # NOTE The goal is to show step by step how things should be done with RLPx
 

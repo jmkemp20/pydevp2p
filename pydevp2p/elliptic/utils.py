@@ -20,6 +20,11 @@ def from_int_to_byte(a):
 
 def from_byte_to_int(a):
         return a
+    
+def hash_to_int(x):
+    if len(x) in [40, 64]:
+        return decode(x, 16)
+    return decode(x, 256)
 
 def decode(string, base):
     if base == 256 and isinstance(string, str):

@@ -1,12 +1,12 @@
 from pydevp2p.crypto.utils import keccak256Hash
 from pydevp2p.elliptic.types import secp256k1
-from pydevp2p.elliptic import curve
+from pydevp2p.elliptic.curve import decode_sig, ecdsa_raw_recover, encode_pubkey, decode_pubkey, privkey_to_pubkey
 
 # Cryptography functions related to the secp256k1 curve
 # All functions, validations, etc are specific to the curve secp256k1
 
 def privtopub(raw_privkey) -> bytes:
-    raw_pubkey = curve.encode_pubkey(curve.privtopub(raw_privkey), 'bin_electrum')
+    raw_pubkey = encode_pubkey(privkey_to_pubkey(raw_privkey), 'bin_electrum')
     assert len(raw_pubkey) == 64
     return raw_pubkey
 
@@ -74,15 +74,17 @@ def verify_signature(sig: bytes):
         return False
     return True
 
-def recover_pubk(hash: bytes, sig: bytes) -> bytes:
-    # TODO - Remove this dependency
-    from eth_keys import KeyAPI
-    test_sig = KeyAPI.Signature(sig)
-    pkey = test_sig.recover_public_key_from_msg_hash(hash)
-    if not pkey.verify_msg_hash(hash, test_sig):
-        print("recover_pubk(hash, sig): Err Unable To Verify Msg")
+def recover_pubk(hash: bytes, sig: bytes) -> bytes | None:
+    
+    if len(hash) != 32:
+        print(f"recover_pubk(hash, sig) Err Invalid Msg Hash Len, Expected: 32 Got: {len(hash)}")
         return None
-    return pkey.to_bytes()
+    
+    r, s, v = decode_sig(sig)
+    
+    Q = ecdsa_raw_recover(hash, (r,s,v))
+    
+    return Q
 
 def signature_to_pubk(msg: bytes, sig: bytes) -> bytes | None:
     """Public key recovery from the ECDSA signature
@@ -92,7 +94,7 @@ def signature_to_pubk(msg: bytes, sig: bytes) -> bytes | None:
     signature, and validating and verifying with the msg itself that the signature
     was created from
     
-    Ethereum block chain uses extended signatures { r, s, v } for signed transactions
+    Ethereum uses extended signatures { r, s, v } for signed transactions
     on the chain to save storage and bandwidth
 
     Args:
@@ -145,7 +147,7 @@ def unmarshal(data: bytes) -> bytes | None:
         print(f"unmarshal(data) Err data[0] != 4, {data[0]} != 4")
         return None
     
-    x, y = curve.decode_pubkey(data)
+    x, y = decode_pubkey(data)
     
     if comparePoints(x, secp256k1.P) >= 0 or comparePoints(y, secp256k1.P) >=0:
         print(f"unmarshal(data) Err comparePoints(x | y, secp256k1.P)")
@@ -155,4 +157,4 @@ def unmarshal(data: bytes) -> bytes | None:
         print(f"unmarshal(data) Err assertValidity(x, y)")
         return None
     
-    return curve.encode_pubkey((x,y), "bin_electrum")
+    return encode_pubkey((x,y), "bin_electrum")

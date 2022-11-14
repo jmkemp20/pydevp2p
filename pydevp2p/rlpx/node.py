@@ -3,8 +3,6 @@ from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
 from pydevp2p.rlpx.rlpx import read_handshake_msg
 from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, HandshakeState, RLPxInitMsgv5, Secrets, SessionState
 from pydevp2p.crypto.secp256k1 import privtopub
-from rlp.codec import decode
-
 
 """
 This maintains all of the information related to an Eth Node along with 

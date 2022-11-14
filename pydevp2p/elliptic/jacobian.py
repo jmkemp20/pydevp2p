@@ -1,10 +1,10 @@
 from pydevp2p.elliptic.types import secp256k1
 
-def to_jacobian(p):
+def to_jacobian(p: tuple[int, int]) -> tuple[int, int, int]:
     o = (p[0], p[1], 1)
     return o
 
-def jacobian_double(p):
+def jacobian_double(p: tuple[int, int, int]) -> tuple[int, int, int]:
     if not p[1]:
         return (0, 0, 0)
     ysq = (p[1] ** 2) % secp256k1.P
@@ -15,7 +15,7 @@ def jacobian_double(p):
     nz = (2 * p[1] * p[2]) % secp256k1.P
     return (nx, ny, nz)
 
-def jacobian_add(p, q):
+def jacobian_add(p: tuple[int, int, int], q: tuple[int, int, int]) -> tuple[int, int, int]:
     if not p[1]:
         return q
     if not q[1]:
@@ -38,7 +38,7 @@ def jacobian_add(p, q):
     nz = (H * p[2] * q[2]) % secp256k1.P
     return (nx, ny, nz)
 
-def jacobian_multiply(a, n):
+def jacobian_multiply(a: tuple[int, int, int], n: int) -> tuple[int, int, int]:
     if a[1] == 0 or n == 0:
         return (0, 0, 1)
     if n == 1:

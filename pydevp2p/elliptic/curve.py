@@ -1,15 +1,16 @@
 from pydevp2p.crypto.params import ECIES_AES128_SHA256
+from pydevp2p.elliptic.jacobian import jacobian_add, jacobian_multiply, to_jacobian
 from pydevp2p.elliptic.types import EllipticCurve, PrivateKey, PublicKey, secp256k1
-from pydevp2p.elliptic.point import fast_multiply
-from pydevp2p.utils import int_to_bytes
-from .utils import *
+from pydevp2p.elliptic.point import fast_multiply, from_jacobian, inv
+from pydevp2p.utils import bytes_to_int, int_to_bytes
+from pydevp2p.elliptic.utils import *
 # Holds the lower level elliptic curve point calculations
 # .. NOTE this is mostly applicable only to the secp256k1 curve
     
 def isinf(p):
     return p[0] == 0 and p[1] == 0
     
-def get_pubkey_format(pub):
+def get_pubkey_format(pub) -> str:
     two = 2
     three = 3
     four = 4
@@ -31,7 +32,7 @@ def get_privkey_format(priv: int | str | bytes) -> str | None:
     elif len(priv) == 66: return 'hex_compressed'
     else: return None
     
-def decode_pubkey(pub, formt=None):
+def decode_pubkey(pub, formt=None) -> tuple[int, int]:
     A = secp256k1.A
     B = secp256k1.B
     P = secp256k1.P
@@ -61,7 +62,7 @@ def decode_privkey(priv, formt=None):
     elif formt == 'hex_compressed': return decode(priv[:64], 16)
     else: return None
     
-def encode_pubkey(pub, formt):
+def encode_pubkey(pub, formt) -> bytes | str:
     if not isinstance(pub, (tuple, list)):
         pub = decode_pubkey(pub)
     if formt == 'decimal': return pub
@@ -106,8 +107,6 @@ def privkey_to_pubkey(privkey):
         return encode_pubkey(fast_multiply(G, privkey), f)
     else:
         return encode_pubkey(fast_multiply(G, privkey), f.replace('wif', 'hex'))
-    
-privtopub = privkey_to_pubkey
 
 def generate_key(rand: bytes, curve: EllipticCurve = secp256k1) -> tuple[bytes, bytes] | None:
     """GenerateKey returns a public/private key pair. The private key is
@@ -137,3 +136,41 @@ def create_private_key(key: int | str | bytes) -> PrivateKey:
         raise Exception("Public Key not in correct format")
     pub = PublicKey(pubk, secp256k1, ECIES_AES128_SHA256)
     return PrivateKey(privk, pub)
+
+def decode_sig(sig: bytes) -> tuple[int,int,int]:
+    r = bytes_to_int(sig[0:32])
+    s = bytes_to_int(sig[32:64])
+    v = ord(sig[64:65])
+    return (r, s, v)
+
+def ecdsa_raw_recover(msghash: bytes, rsv: tuple[int, int, int]):
+    # https://www.secg.org/sec1-v2.pdf page 47-48
+    # https://gist.github.com/nlitsme/dda36eeef541de37d996
+    N = secp256k1.N
+    A = secp256k1.A
+    B = secp256k1.B
+    H = secp256k1.H
+    P = secp256k1.P
+    G = secp256k1.G
+    r, s, v = rsv
+    
+    x = r
+    
+    ysqaure = (x**3 + A * x + B)
+    beta = pow(ysqaure, (P+1)//4, P)
+    y = beta if beta % 2 == v else -beta
+    R = (x, y)
+    
+    m = bytes_to_int(msghash)
+    # R * s
+    Rs = jacobian_multiply(to_jacobian(R), s)
+    # G * m // r
+    Gz = jacobian_multiply(to_jacobian(G), (N - m) % N)
+    
+    # (R * s - G * m)
+    Qr = jacobian_add(Rs, Gz)
+    Q = jacobian_multiply(Qr, inv(r, N))
+    Q = from_jacobian(Q)
+    
+    return encode_pubkey(Q, "bin_electrum")
+    # return False
