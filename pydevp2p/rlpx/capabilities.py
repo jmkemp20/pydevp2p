@@ -22,7 +22,7 @@ class RLPxCapabilityMsg:
         vals = self.getValues()
         for i in range(1, len(vals)):
             ret += f"  {vals[i]}\n"
-        return f"RLPxCapabilityMsg:\n  {self.msg}"
+        return f"RLPxCapabilityMsg:\n{ret}"
     
     def getValues(self):
         ret = [len(self.d_msg)]

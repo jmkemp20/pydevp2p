@@ -1,7 +1,7 @@
 
 from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
-from pydevp2p.rlpx.rlpx import read_handshake_msg
-from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, HandshakeState, RLPxP2PMsg, Secrets, SessionState
+from pydevp2p.rlpx.handshake import AuthMsgV4, AuthRespV4, HandshakeState, Secrets, read_handshake_msg
+from pydevp2p.rlpx.types import RLPxP2PMsg, SessionState
 from pydevp2p.crypto.secp256k1 import privtopub
 
 """

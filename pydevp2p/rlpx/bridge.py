@@ -2,7 +2,8 @@
 # This file is a bridge to handle payload data incoming from a LUA dissector
 from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
 from pydevp2p.rlpx.node import Node
-from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, RLPxP2PMsg
+from pydevp2p.rlpx.handshake import AuthMsgV4, AuthRespV4
+from pydevp2p.rlpx.types import RLPxP2PMsg
 from pydevp2p.utils import hex_to_bytes
 
 
