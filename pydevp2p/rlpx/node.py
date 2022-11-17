@@ -1,4 +1,5 @@
 
+from pydevp2p.discover.v5wire.encoding import Discv5Codec
 from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
 from pydevp2p.rlpx.handshake import HandshakeState, Secrets, read_handshake_msg
 from pydevp2p.rlpx.rlpx import FrameHeader, SessionState
@@ -34,24 +35,30 @@ class PeerConnection:
     
     Before sending messages, a handshake must be performed
     """
-    def __init__(self, parentNode: "Node", otherNode: "Node", initiator: bool) -> None:
+    def __init__(self, parentNode: "Node", otherNode: "Node") -> None:
         self.parentNode = parentNode
         self.otherNode = otherNode
-        self.hshakeCompleted = False
-        self.handshakeState = HandshakeState(initiator, otherNode.pubK)
+        # RLPx related fields
+        self.handshakeState: HandshakeState | None = None
         self.sessionState: SessionState | None = None
         self.authInitData = None
         self.authRespData = None
         self.secrets: Secrets | None = None
-        if not initiator:
-            # need to make sure there is a peer connection for the other node
-            otherNode.addConnection(parentNode, True)
             
     def __str__(self) -> str:
         return f"PeerConnection: {self.parentNode.ipaddr} → {self.otherNode.ipaddr}\n {self.handshakeState}\n {self.secrets}"
-        
+    
+    def initHandshake(self, initiator: bool) -> HandshakeState:
+        # Called upon an Auth Msg or Auth Ack Msg to setup State
+        self.handshakeState = HandshakeState(initiator, self.otherNode.pubK)
+        return self.handshakeState
+    
     def handleAuthMsg(self, msg: AuthMsgV4, privK: bytes) -> bytes | None:
         # Here we need to set the RandomPrivKey to the other side of the connection
+        otherNodePeer = self.otherNode.peers.get(self.parentNode.ipaddr)
+        # Make sure the other nodes PeerConnection to the parent node Handshake State is initialized
+        if otherNodePeer.handshakeState is None:
+            otherNodePeer.initHandshake(True)
         otherHandshakeState = self.otherNode.peers.get(self.parentNode.ipaddr).handshakeState
         otherHandshakeState.initNonce = msg.Nonce
         if hasattr(msg, "RandomPrivKey"):
@@ -61,6 +68,9 @@ class PeerConnection:
     def handleAuthResp(self, msg: AuthRespV4) -> bytes | None:
         # Here we need to set the RandomPrivKey to the other side of the connection
         otherNodePeer = self.otherNode.peers.get(self.parentNode.ipaddr)
+        # Make sure the other nodes PeerConnection to the parent node Handshake State is initialized
+        if otherNodePeer.handshakeState is None:
+            otherNodePeer.initHandshake(False)
         if otherNodePeer is not None:
             otherHandshakeState = self.otherNode.peers.get(self.parentNode.ipaddr).handshakeState
             otherHandshakeState.respNonce = msg.Nonce
@@ -104,19 +114,32 @@ class Node:
         # TODO allow a node without a privk (this is to prevent hardcoding)
         self.privK = privK
         self.pubK = privtopub(privK)
+        # Handles enc/dec of discovery v5 and pending/active discovery read writes
+        self.discv5 = Discv5Codec(self.privK)
+        # List of active RLPx peers (already discovered/authenticated)
         self.peers: dict[str, PeerConnection] = {} # Dictionary of PeerConnections
         
-    def addConnection(self, otherNode: "Node", init: bool) -> PeerConnection:
+    def addConnection(self, otherNode: "Node") -> PeerConnection:
         p = self.peers.get(otherNode.ipaddr)
         if p is not None:
-            # print("addConnection(ipaddr, remotePubK) PeerConnection already added")
+            # print("addConnection(ipaddr) PeerConnection already added")
             return p          
-        p = PeerConnection(self, otherNode, init)
+        p = PeerConnection(self, otherNode)
         self.peers[otherNode.ipaddr] = p
         return self.peers[otherNode.ipaddr]
         
     def dropConnection(self, ipaddr: str):
         self.peers.pop(ipaddr)
+        
+    def readDiscv5Msg(self, msg: bytes | str, srcNode: "Node"):
+        cleansed = msg
+        if isinstance(cleansed, str):
+            cleansed = bytes.fromhex(msg)
+        
+        # TODO IMPLEMENT
+        self.discv5.decode(cleansed, srcNode.ipaddr)
+        
+        return
         
     def readHandshakeMsg(self, msg: bytes | str, srcNode: "Node") -> AuthMsgV4 | AuthRespV4 | None:
         # basically readMsg
@@ -129,7 +152,12 @@ class Node:
         
         # Next, check to see if it is auth init or auth resp
         if isinstance(dec, AuthMsgV4):
-            peer = self.addConnection(srcNode, init=False)
+            peer = self.addConnection(srcNode)
+            if peer.handshakeState is None:
+                peer.initHandshake(False)
+            # Set the peer connection of the sender's node to this node
+            if peer.otherNode.peers.get(self.ipaddr) is None:
+                peer.otherNode.addConnection(self)
             # Set the raw authInitData (to be used with secrets)
             peer.authInitData = data
             peer.otherNode.peers.get(self.ipaddr).authInitData = data
@@ -140,7 +168,12 @@ class Node:
             # print(f"AUTH INIT {self.ipaddr} → {fromaddr}: Remote Random Pubk: {bytes_to_hex(remoteRandomPubk)}")
             pass
         elif isinstance(dec, AuthRespV4):
-            peer = self.addConnection(srcNode, init=True)
+            peer = self.addConnection(srcNode)
+            if peer.handshakeState is None:
+                peer.initHandshake(True)
+            # Set the peer connection of the sender's node to this node
+            if peer.otherNode.peers.get(self.ipaddr) is None:
+                peer.otherNode.addConnection(self)
             # Set the raw authRespData (to be used with secrets)
             peer.authRespData = data
             peer.otherNode.peers.get(self.ipaddr).authRespData = data
