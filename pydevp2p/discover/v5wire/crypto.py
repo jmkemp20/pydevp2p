@@ -1,5 +1,11 @@
+from Crypto.Cipher import AES
+from Crypto.Hash import SHA256, SHA1
+from Crypto.Protocol.KDF import HKDF
+
 from pydevp2p.discover.datatypes import Enode
 from pydevp2p.discover.v5wire.session import Session
+from pydevp2p.elliptic.curve import decode_pubkey, encode_pubkey, multiply
+from pydevp2p.utils import bytes_to_hex, bytes_to_int, int_to_bytes
 
 
 # geth/p2p/discover/v5wire/crypto.go
@@ -22,7 +28,7 @@ def decodePubk(e: bytes) -> bytes | None:
     
     # TODO decompress the compressed pubk e here
     # dec = decompressPubk(e)
-    return e
+    return encode_pubkey(e, "bin_electrum")
 
 def idNonceHash(hash, challenge: bytes, ephkey: bytes, destID: bytes) -> bytes:
     # idNonceHash computes the ID signature hash used in the handshake.
@@ -34,15 +40,41 @@ def makeIDSignature(hash, privk: bytes, challenge: bytes, ephkey: bytes, destID:
 
 def verifyIDSignature(hash, sig: bytes, n: Enode, challenge: bytes, ephkey: bytes, destID: bytes) -> bool:
     # verifyIDSignature checks that signature over idnonce was made by the given node.
-    return
+    return True
 
 def deriveKeys(hash, privk: bytes, pubk: bytes, n1: bytes, n2: bytes, challenge: bytes) -> Session:
     # deriveKeys creates the session keys.
-    return
+    text = "discovery v5 key agreement".encode('utf-8')
+    info = text + n1 + n2
+    if len(info) != len(text) + len(n1) + len(n2):
+        print("deriveKeys(hash, privk, pubk, n1, n2, challenge) Err Invalid Info Len")
+        return None
+    
+    eph = ecdh(pubk, privk)
+    if eph is None:
+        print("deriveKeys(hash, privk, pubk, n1, n2, challenge) Err Unable to Generate Shared Secret")
+        return None
 
-def ecdh(privk: bytes, pubk: bytes) -> bytes:
+    writeKey, readKey = HKDF(master=eph, key_len=16, salt=challenge, hashmod=hash, num_keys=2, context=info)
+    # K = concatKDF(hash, eph, challenge, 32)
+    # writeKey = K[:16]
+    # readKey = K[16:]
+    # print()
+    # print("eph:", bytes_to_hex(eph))
+    # print("challenge:", bytes_to_hex(challenge), len(challenge))
+    # print("info:", bytes_to_hex(info))
+    # print("writeKey:", bytes_to_hex(writeKey))
+    # print("readKey:", bytes_to_hex(readKey))
+    
+    return Session(writeKey, readKey, 0)
+
+def ecdh(pubk: bytes, privk: bytes) -> bytes:
     # ecdh creates a shared secret.
-    return
+    eph_key = multiply(pubk, privk)
+    shr_key = decode_pubkey(eph_key)
+    first = bytes_to_int(b'\x02') | ((shr_key[1] >> 0) & 1)
+   
+    return int_to_bytes(first) + int_to_bytes(shr_key[0])
 
 def encryptGCM(dest: bytes, key: bytes, nonce: bytes, plaintext: bytes, authData: bytes) -> bytes | None:
     """encryptGCM encrypts pt using AES-GCM with the given key and nonce.
@@ -74,5 +106,12 @@ def decryptGCM(key: bytes, nonce: bytes, ct: bytes, authData: bytes) -> bytes | 
     Returns:
         bytes | None: _description_
     """
-    return
+    if len(nonce) != gcmNonceSize:
+        print(f"decryptGCM(key, nonce, ct, authData) Err Invalid Nonce Size: Exptected {gcmNonceSize}, Got {len(nonce)}")
+        return None
+    
+    cipher = AES.new(key, mode=AES.MODE_GCM, nonce=nonce)
+    pt = cipher.decrypt(ct)
+    
+    return pt
  

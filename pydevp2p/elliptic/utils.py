@@ -1,5 +1,8 @@
 
 # Base switching
+from pydevp2p.crypto.utils import keccak256Hash
+
+
 code_strings = {
     2: '01',
     10: '0123456789',
@@ -67,3 +70,6 @@ def encode(val, base, minlen=0):
     result = result_bytes if base == 256 else result_string
 
     return result
+
+def pubk_to_idv4(pubk: bytes) -> bytes: # 32 bytes
+    return keccak256Hash(pubk)

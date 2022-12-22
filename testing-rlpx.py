@@ -110,7 +110,9 @@ rlpx_msg_src, rlpx_msg_dst, rlpx_msg = ("10.1.0.10", "10.1.2.20", \
 src_node, dst_node = all_nodes.get(rlpx_msg_src), all_nodes.get(rlpx_msg_dst)
 
 header, body  = dst_node.readRLPxMsg(rlpx_msg, src_node)
-print(f"{rlpx_msg_src} → {rlpx_msg_dst}", body)
+print(f"{rlpx_msg_src} → {rlpx_msg_dst}")
+print(header)
+print(body)
 
 ############################################################
 # RLPx Frame 10.1.2.20 → 10.1.0.10 (node2 → bootnode)      #
@@ -118,10 +120,11 @@ print(f"{rlpx_msg_src} → {rlpx_msg_dst}", body)
 rlpx_msg_src, rlpx_msg_dst, rlpx_msg = ("10.1.2.20", "10.1.0.10", \
     "169b0ebeac3f711c8dd62533efc778a5c2cfb8ac16ab8850c9e5e0b661f9daff955e2d8eff354e48a79acdddade16b573c929d9b575dbdd0630a7b83635d6b1def6acb1f10f96be7fc3ba075d264c1d3b62a3e7b7be0f5a2f257df23819aa92e38d4bbe671e4b68eb994652d3de685057b928660e4ca5f812afa9234d6db006d6c0f585cb98578490fb58c04e93b36f76dce68ab2928148faa61948437ae886dca8eba9d431ab3527dc2dcd22b35f0f439784134dce9561ae12579c3399cbba386aea1ab8de29a6daaf64feafc42ccc4")
 src_node, dst_node = all_nodes.get(rlpx_msg_src), all_nodes.get(rlpx_msg_dst)
-
 header, body = dst_node.readRLPxMsg(rlpx_msg, src_node)
-print(f"{rlpx_msg_src} → {rlpx_msg_dst}", body)
-
+print()
+print(f"{rlpx_msg_src} → {rlpx_msg_dst}")
+print(header)
+print(body)
 
 ############################################################
 # RLPx Frame 10.1.0.10 → 10.1.2.20 (bootnode → node2)      #
@@ -129,9 +132,11 @@ print(f"{rlpx_msg_src} → {rlpx_msg_dst}", body)
 rlpx_msg_src, rlpx_msg_dst, rlpx_msg = ("10.1.0.10", "10.1.2.20", \
     "e526bdaa7bd28ded597a034eb78777aa86b3e6cdb4722c1455c636528fdc9f9e8cd963d78da339573780990768e85f942657b79c1b3730a878108b71dd6c1859beff913c59dc9dd2848c94656a244766c378f9c5e52ae4cc2abd7b5885d0e8a32ec494aa8a59bc49b1b6501e89381d95")
 src_node, dst_node = all_nodes.get(rlpx_msg_src), all_nodes.get(rlpx_msg_dst)
-
 header, body  = dst_node.readRLPxMsg(rlpx_msg, src_node)
-print(f"{rlpx_msg_src} → {rlpx_msg_dst}", body)
+print()
+print(f"{rlpx_msg_src} → {rlpx_msg_dst}")
+print(header)
+print(body)
 
 ############################################################
 # RLPx Frame 10.1.2.20 → 10.1.0.10 (node2 → bootnode)      #
@@ -139,6 +144,8 @@ print(f"{rlpx_msg_src} → {rlpx_msg_dst}", body)
 rlpx_msg_src, rlpx_msg_dst, rlpx_msg = ("10.1.2.20", "10.1.0.10", \
     "e526bdaa7bd28ded597a034eb78777aa91d4b153a1539b2434f215d34272d3d18cd963d78da339573780990768e85f942657b79c1b3730a878108b71dd6c1859beff913c59dc9dd2848c94656a244766c378f9c5e52ae4cc2abd7b5885d0e8a3c13b8d3c7c737bf68c1fc814722441c0")
 src_node, dst_node = all_nodes.get(rlpx_msg_src), all_nodes.get(rlpx_msg_dst)
-
 header, body  = dst_node.readRLPxMsg(rlpx_msg, src_node)
-print(f"{rlpx_msg_src} → {rlpx_msg_dst}", body)
+print()
+print(f"{rlpx_msg_src} → {rlpx_msg_dst}")
+print(header)
+print(body)

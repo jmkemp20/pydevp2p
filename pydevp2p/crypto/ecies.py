@@ -51,7 +51,7 @@ def generate_shared_secret(pub: bytes, priv: bytes) -> bytes | None:
         print(f"generate_shared_key() {e}")
         return None
     
-def concatKDF(hash, z: bytes, s1: bytes, kdlen: int) -> bytes:
+def concatKDF(hash, z: bytes, s1: bytes, kdlen: int, s2: bytes = None) -> bytes:
     """NIST SP 800-56 Concatenation Key Derivation Function (see section 5.8.1).
     This extracts key-material from the shared-secret, specifically the 
     encryption-key and mac-key
@@ -73,6 +73,8 @@ def concatKDF(hash, z: bytes, s1: bytes, kdlen: int) -> bytes:
         hash.update(counterbytes)
         hash.update(z)
         hash.update(s1)
+        if s2 is not None:
+            hash.update(s2)
         k = k + hash.digest()
         counter += 1
     return k[:kdlen]

@@ -1,7 +1,10 @@
 
 # geth/p2p/discover/v5wire/msg.go
+from rlp.codec import decode
 
-from pydevp2p.discover.datatypes import Record
+from pydevp2p.discover.datatypes import Enode, Record
+from pydevp2p.rlp.utils import cleanse_rlp
+from pydevp2p.utils import bytes_to_hex, bytes_to_int, framectx
 
  
 class Packet:
@@ -15,7 +18,30 @@ class Packet:
         return
     
     def __str__(self) -> str:
-        pass
+        ret = f"Discv5 Packet:"
+        for attr, val in self.__dict__.items():
+            cleansedVal = val
+            if isinstance(val, bytes):
+                cleansedVal = bytes_to_hex(val) if len(val) > 8 else bytes_to_int(val)
+            if isinstance(val, list):
+                cleansedVal = ", ".join(cleanse_rlp(val))
+            ret += f"\n  {attr.capitalize()}: {cleansedVal}"
+        return ret
+    
+    def getValues(self) -> list[str]:
+        ret = [len(self.__dict__.items())]
+        for attr, val in self.__dict__.items():
+            cleansedVal = val
+            if isinstance(val, bytes):
+                cleansedVal = bytes_to_hex(val) if len(val) > 8 else bytes_to_int(val)
+            if isinstance(val, list):
+                cleansedVal = ", ".join(cleanse_rlp(val))
+            ret.append(f"{attr.capitalize()}: {cleansedVal}")
+        return ret
+            
+    def getTypeString(self, headerType: str) -> str:
+        return f"[DiscoveryV5 {headerType} {self.name}] Version=5 Kind={self.kind} RequestID={self.requestID}"
+        
     
 class Unknown(Packet):
     # Unknown represents any packet that can't be decrypted.
@@ -33,8 +59,7 @@ class Whoareyou(Packet):
         self.recordSeq = recordSeq # ENR sequence number of recipient (uint64 - 8 bytes)
         # The following is the locally known ifo of the recipient
         # .. These must be set by the caller of Encode
-        self.recipientENR: Record = None
-        self.recipientPubk: bytes = None
+        self.node: Enode = None
         
 class Ping(Packet):
     # Ping is sent during liveness checks.
@@ -49,7 +74,7 @@ class Pong(Packet):
         self.enrSeq = enrSeq
         # These fields should mirror the UDP envelope address of the ping
         # .. packet, which provides a way to discover the external address (after NAT).
-        self.toIP = toIP
+        self.toIP = ".".join(f'{c}' for c in toIP)
         self.toPort = toPort
             
 class FindNode(Packet):
@@ -108,3 +133,36 @@ class TopicQuery(Packet):
     def __init__(self, reqID: bytes, topic: bytes) -> None:
         super().__init__("TOPICQUERY/v5", 11, reqID)
         self.topic = topic
+        
+ptypes = [Ping, Pong, FindNode, Nodes, TalkRequest, TalkResponse, \
+    RequestTicket, Ticket, RegTopic, RegConfirmation, TopicQuery]
+        
+def decodeMessageByType(ptype: int, body: bytes) -> Packet | None:
+    if len(ptypes) < ptype < 1:
+        print(f"{framectx()} decodeMessageByType(ptype, body) Err Invalid ptype: {ptype}")
+        return None
+    
+    dec: list[bytes] = None
+    try:
+        dec = decode(body, strict=False)
+    except BaseException as e:
+        print(f"{framectx()} decodeMessageByType(ptype, body) Err {e}")
+        return None
+    if dec is None:
+        print(f"{framectx()} decodeMessageByType(ptype, body) Err Unable to RLP Decode Message")
+        return None
+
+    if len(dec) == 2:
+        return ptypes[ptype - 1](dec[0], dec[1])
+    elif len(dec) == 3:
+        return ptypes[ptype - 1](dec[0], dec[1], dec[2])
+    elif len(dec) == 4:
+        return ptypes[ptype - 1](dec[0], dec[1], dec[2], dec[3])
+    
+    print(f"{framectx()} decodeMessageByType(ptype, body) Err Unable to Parse Message")
+    return None
+    
+        
+    
+    
+    

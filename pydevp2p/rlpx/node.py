@@ -1,10 +1,14 @@
 
-from pydevp2p.discover.v5wire.encoding import Discv5Codec
+from pydevp2p.discover.v4wire.decode import decodeDiscv4
+from pydevp2p.discover.v5wire.encoding import Discv5Codec, Header
+from pydevp2p.discover.v5wire.msg import Packet
+from pydevp2p.elliptic.utils import pubk_to_idv4
 from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg
 from pydevp2p.rlpx.handshake import HandshakeState, Secrets, read_handshake_msg
 from pydevp2p.rlpx.rlpx import FrameHeader, SessionState
 from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, RLPxP2PMsg, RLPxCapabilityMsg
 from pydevp2p.crypto.secp256k1 import privtopub
+from pydevp2p.utils import bytes_to_hex, bytes_to_int, hex_to_bytes
 
 """
 This maintains all of the information related to an Eth Node along with 
@@ -131,15 +135,29 @@ class Node:
     def dropConnection(self, ipaddr: str):
         self.peers.pop(ipaddr)
         
-    def readDiscv5Msg(self, msg: bytes | str, srcNode: "Node"):
+    def readDiscv4Msg(self, msg: bytes | str, srcNode: "Node") -> tuple[Header, Packet | None] | None:
         cleansed = msg
         if isinstance(cleansed, str):
             cleansed = bytes.fromhex(msg)
+            
+        return decodeDiscv4(cleansed)
         
-        # TODO IMPLEMENT
-        self.discv5.decode(cleansed, srcNode.ipaddr)
+    def readDiscv5Msg(self, msg: bytes | str, srcNode: "Node") -> tuple[Header, Packet] | None:
+        cleansed = msg
+        if isinstance(cleansed, str):
+            cleansed = bytes.fromhex(msg)
+            
+        header, packet, session = self.discv5.decode(cleansed, srcNode.ipaddr)
+        # If the packet for dstNode (self) is WHOAREYOU, must setup the Handshake Session for the 
+        # .. sender None i.e. srcNode
+        if header is not None and packet is not None:
+            if bytes_to_int(header.flag) == 1 and packet.kind == 254:
+                # WHOAREYOU/v5
+                srcNode.discv5.sc.storeSentHandshake(pubk_to_idv4(self.pubK), self.ipaddr, packet)
+            elif bytes_to_int(header.flag) == 2:
+                srcNode.discv5.sc.storeNewSession(pubk_to_idv4(self.pubK), self.ipaddr, session.keysFlipped())
         
-        return
+        return header, packet
         
     def readHandshakeMsg(self, msg: bytes | str, srcNode: "Node") -> AuthMsgV4 | AuthRespV4 | None:
         # basically readMsg
@@ -147,7 +165,7 @@ class Node:
         # so if the receiver src.dst is getting an AuthResp then they are definitely the initiator
         cleansed = msg
         if isinstance(cleansed, str):
-            cleansed = bytes.fromhex(msg)
+            cleansed = hex_to_bytes(msg)
         dec, data = read_handshake_msg(self.privK, cleansed) # AuthMsgV4 | AuthRespV4 | None
         
         # Next, check to see if it is auth init or auth resp
@@ -211,20 +229,3 @@ class Node:
         
         return frameHeader, frameBody
             
-        
-
-all_nodes: dict[str, Node] = {}
-        
-    
-def add_new_node(ipaddr: str, privk: bytes) -> Node:
-    n = all_nodes.get(ipaddr)
-    if n is not None:
-        print("add_new_node(ipaddr, privk) Node already added")
-        return n
-    n = Node(ipaddr, privk)
-    all_nodes[ipaddr] = n
-    return n
-    
-def remove_node(ipaddr: str) -> None:
-    all_nodes.pop(ipaddr)
-
