@@ -25,15 +25,16 @@ all_nodes: dict[str, Node] = {
 }
 
 cache = {
-    
+
 }
+
 
 def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str) -> AuthMsgV4 | AuthRespV4 | None:
     src_node = all_nodes.get(srcip)
     dst_node = all_nodes.get(dstip)
     if src_node is None or dst_node is None:
         return None
-    
+
     key = srcip + dstip + payload
     ret = cache.get(key)
     if not ret:
@@ -43,32 +44,37 @@ def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str) -> AuthMsgV4 | 
             print(f"[BRIDGE] handleAuthMsg(srcip, dstip, payload) {e}")
             return None
         if dec is None:
-            print(f"[BRIDGE] handleAuthMsg(srcip, dstip, payload) Unable to readHandshakeMsg()")
+            print(
+                f"[BRIDGE] handleAuthMsg(srcip, dstip, payload) Unable to readHandshakeMsg()")
             return None
         ret = dec.getValues()
         cache[key] = ret
-    
+
     return ret
+
 
 def handleRLPxMsg(srcip: str, dstip: str, payload: str) -> tuple[FrameHeader, RLPxP2PMsg | RLPxCapabilityMsg | None, str | None] | None:
     src_node = all_nodes.get(srcip)
     dst_node = all_nodes.get(dstip)
     if src_node is None or dst_node is None:
         return None
-    
+
     key = srcip + dstip + payload
     ret = cache.get(key)
     if not ret:
         try:
-            decHeader, decBody = dst_node.readRLPxMsg(hex_to_bytes(payload), src_node)
+            decHeader, decBody = dst_node.readRLPxMsg(
+                hex_to_bytes(payload), src_node)
         except BaseException as e:
             print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) {e}")
             return None
         if decHeader is None:
-            print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Err Frame Header None")
+            print(
+                f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Err Frame Header None")
             return None
         elif decBody is None:
-            print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Err Frame Body None")
+            print(
+                f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Err Frame Body None")
             return decHeader, None, None
         ret = (decHeader, decBody.getValues(), decBody.type)
         cache[key] = ret
@@ -77,14 +83,15 @@ def handleRLPxMsg(srcip: str, dstip: str, payload: str) -> tuple[FrameHeader, RL
 
     return frameHeader, frameBody, frameType
 
+
 def handleDiscv5Msg(srcip: str, dstip: str, payload: str) -> tuple[Discv5Header, Discv5Packet | None] | None:
     src_node = all_nodes.get(srcip)
     dst_node = all_nodes.get(dstip)
     if src_node is None or dst_node is None:
         return None
-    
+
     flag_types = ["MESSAGE", "WHOAREYOU", "HANDSHAKE"]
-    
+
     key = srcip + dstip + payload
     ret = cache.get(key)
     if not ret:
@@ -97,13 +104,17 @@ def handleDiscv5Msg(srcip: str, dstip: str, payload: str) -> tuple[Discv5Header,
             print(f"[BRIDGE] handleDiscv5Msg(srcip, dstip, payload) {e}")
             return None
         if decHeader is None:
-            print(f"[BRIDGE] handleDiscv5Msg(srcip, dstip, payload) Err Discv5 Header is None")
+            print(
+                f"[BRIDGE] handleDiscv5Msg(srcip, dstip, payload) Err Discv5 Header is None")
             return None
         elif decPacket is None:
-            print(f"[BRIDGE] handleDiscv5Msg(srcip, dstip, payload) Err Discv5 Packet is None")
+            print(
+                f"[BRIDGE] handleDiscv5Msg(srcip, dstip, payload) Err Discv5 Packet is None")
             return decHeader, None, None
-        type = decPacket.getTypeString(flag_types[bytes_to_int(decHeader.flag)])
-        ret = (decHeader.getValues(), decHeader.getSize(), decPacket.getValues(), type)
+        type = decPacket.getTypeString(
+            flag_types[bytes_to_int(decHeader.flag)])
+        ret = (decHeader.getValues(), decHeader.getSize(),
+               decPacket.getValues(), type)
         cache[key] = ret
 
     discv5Header, headerSize, discv5Packet, packetType = ret
@@ -124,10 +135,12 @@ def handleDiscv4Msg(srcip: str, dstip: str, payload: str) -> tuple[Discv4Header,
             print(f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) {e}")
             return None
         if decHeader is None:
-            print(f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Header is None")
+            print(
+                f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Header is None")
             return None
         elif decPacket is None:
-            print(f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Packet is None")
+            print(
+                f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Packet is None")
             return decHeader.getValues(), None, None
         type = decPacket.getTypeString()
         return decHeader.getValues(), decPacket.getValues(), type
@@ -141,14 +154,15 @@ def handleDiscv4Msg(srcip: str, dstip: str, payload: str) -> tuple[Discv4Header,
             print(f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) {e}")
             return None
         if decHeader is None:
-            print(f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Header is None")
+            print(
+                f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Header is None")
             return None
         elif decPacket is None:
-            print(f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Packet is None")
+            print(
+                f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Packet is None")
             return decHeader.getValues(), None, None
         type = decPacket.getTypeString()
         ret = (decHeader.getValues(), decPacket.getValues(), type)
-
 
     discv4Header, discv4Packet, packetType = ret
 
