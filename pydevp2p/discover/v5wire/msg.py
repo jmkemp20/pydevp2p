@@ -25,9 +25,17 @@ class Packet:
             if isinstance(val, bytes):
                 cleansedVal = bytes_to_hex(val) if len(
                     val) > 8 else bytes_to_int(val)
+                ret += f"\n  {attr.capitalize()}: {cleansedVal}"
             if isinstance(val, list):
-                cleansedVal = ", ".join(cleanse_rlp(val))
-            ret += f"\n  {attr.capitalize()}: {cleansedVal}"
+                if len(val) > 0 and attr == "nodes":
+                    ret += f"\n  {attr.capitalize()}:"
+                    for idx, item in enumerate(val):
+                        ret += f"\n       {attr.capitalize()} #{idx+1}:"
+                        for field in Record.as_str_list(item):
+                            ret += f"\n               {field}"
+                else:
+                    cleansedVal = ", ".join(cleanse_rlp(val))
+                    ret += f"\n  {attr.capitalize()}: {cleansedVal}"
         return ret
 
     def getValues(self) -> list[str]:
@@ -37,13 +45,24 @@ class Packet:
             if isinstance(val, bytes):
                 cleansedVal = bytes_to_hex(val) if len(
                     val) > 8 else bytes_to_int(val)
+                ret.append(f"{attr.capitalize()}: {cleansedVal}")
             if isinstance(val, list):
-                cleansedVal = ", ".join(cleanse_rlp(val))
-            ret.append(f"{attr.capitalize()}: {cleansedVal}")
+                if len(val) > 0 and attr == "nodes":
+                    ret.append(attr.capitalize())
+                    for idx, item in enumerate(val):
+                        ret.append(f"       {attr.capitalize()} #{idx+1}:")
+                        for field in Record.as_str_list(item):
+                            ret.append(f"               {field}")
+                        ret[0] += len(item)
+                else:
+                    cleansedVal = ", ".join(cleanse_rlp(val))
+                    ret.append(f"{attr.capitalize()}: {cleansedVal}")
         return ret
 
     def getTypeString(self, headerType: str) -> str:
-        return f"[DiscoveryV5 {headerType} {self.name}] Version=5 Kind={self.kind} RequestID={self.requestID}"
+        req_id = bytes_to_int(
+            self.requestID) if self.requestID is not None else "N/A"
+        return f"[DiscoveryV5 {headerType} {self.name}] Version=5 Kind={self.kind} RequestID={req_id}"
 
 
 class Unknown(Packet):

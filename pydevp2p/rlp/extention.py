@@ -6,7 +6,7 @@ from pydevp2p.utils import dict_to_depth_str_list, flatten_dict
 
 class RLPMessage(Serializable):
 
-    def as_dict(self, parent_field=None, flat=False):
+    def as_dict(self, parent_field=None, flat=False) -> dict[str, Any]:
         # allows for deep dictionary casting
         ret = {}
 
