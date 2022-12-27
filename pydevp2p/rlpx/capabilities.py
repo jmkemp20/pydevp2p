@@ -123,7 +123,6 @@ class EthCapabilitiy(RLPxCapabilityMsg):
             return
         try:
             dec = decode(raw, sedes=msg_type, strict=False)
-            print(type(dec))
             self.fields = dec.as_str_list()
         except BaseException as e:
             print(

@@ -136,6 +136,7 @@ class VariableList(object):
 
     def deserialize(self, serial):
         if len(serial) != len(self.element_sedes._meta.fields):
+            print(f"ERROR: {serial}")
             raise ListDeserializationError(
                 'Wrong Number of Items in List', serial=serial)
         return self.element_sedes.deserialize(serial)
