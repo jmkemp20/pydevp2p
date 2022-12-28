@@ -9,7 +9,6 @@ from pydevp2p.rlpx.rlpx import FrameHeader
 from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, RLPxP2PMsg, RLPxCapabilityMsg
 from pydevp2p.utils import bytes_to_int, hex_to_bytes
 
-write_to_file = False
 
 boot_priv_static_k = "3028271501873c4ecf501a2d3945dcb64ea3f27d6f163af45eb23ced9e92d85b"
 node1_priv_static_k = "4622d11b274848c32caf35dded1ed8e04316b1cde6579542f0510d86eb921298"
@@ -30,6 +29,16 @@ cache = {
 }
 
 recv = []
+write_to_file = False
+
+
+def saveToFile(srcip: str, dstip: str, payload: str, visited: bool, number: int):
+    # Used to save captured data to JSON stream, helpful for debugging
+    if write_to_file and not visited:
+        recv.append({"src": srcip, "dst": dstip,
+                    "payload": payload, "type": "rlpx-handshake", "visited": visited, "number": number})
+        with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
+            json.dump(recv, f)
 
 
 def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str, visited: bool = False, number: int = -1) -> AuthMsgV4 | AuthRespV4 | None:
@@ -38,11 +47,8 @@ def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str, visited: bool =
     if src_node is None or dst_node is None:
         return None
 
-    if write_to_file and not visited:
-        recv.append({"src": srcip, "dst": dstip,
-                    "payload": payload, "type": "rlpx-handshake", "visited": visited, "number": number})
-        with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
-            json.dump(recv, f)
+    saveToFile(srcip, dstip, payload, visited, number)
+
     key = number if number >= 0 else srcip + dstip + payload
     ret = cache.get(key)
     if not ret:
@@ -68,11 +74,7 @@ def handleRLPxMsg(srcip: str, dstip: str, payload: str, visited: bool = False, n
     if src_node is None or dst_node is None:
         return None
 
-    if write_to_file and not visited:
-        recv.append({"src": srcip, "dst": dstip,
-                    "payload": payload, "type": "rlpx-msg", "visited": visited, "number": number})
-        with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
-            json.dump(recv, f)
+    saveToFile(srcip, dstip, payload, visited, number)
 
     key = number if number >= 0 else srcip + dstip + payload
     ret = cache.get(key)
@@ -108,11 +110,7 @@ def handleDiscv5Msg(srcip: str, dstip: str, payload: str, visited: bool = False,
 
     flag_types = ["MESSAGE", "WHOAREYOU", "HANDSHAKE"]
 
-    if write_to_file and not visited:
-        recv.append({"src": srcip, "dst": dstip,
-                    "payload": payload, "type": "discv5", "visited": visited, "number": number})
-        with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
-            json.dump(recv, f)
+    saveToFile(srcip, dstip, payload, visited, number)
 
     key = number if number >= 0 else srcip + dstip + payload
     ret = cache.get(key)
@@ -149,11 +147,7 @@ def handleDiscv4Msg(srcip: str, dstip: str, payload: str, visited: bool = False,
     src_node = all_nodes.get(srcip)
     dst_node = all_nodes.get(dstip)
 
-    if write_to_file and not visited:
-        recv.append({"src": srcip, "dst": dstip,
-                    "payload": payload, "type": "discv4", "visited": visited, "number": number})
-        with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
-            json.dump(recv, f)
+    saveToFile(srcip, dstip, payload, visited, number)
 
     if src_node is None or dst_node is None:
         try:
