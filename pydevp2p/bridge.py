@@ -1,4 +1,5 @@
-
+import json
+from time import time
 # This file is a bridge to handle payload data incoming from a LUA dissector
 from pydevp2p.discover.v4wire.decode import decodeDiscv4
 from pydevp2p.discover.v4wire.msg import Header as Discv4Header, Packet as Discv4Packet
@@ -9,6 +10,7 @@ from pydevp2p.rlpx.rlpx import FrameHeader
 from pydevp2p.rlpx.types import AuthMsgV4, AuthRespV4, RLPxP2PMsg, RLPxCapabilityMsg
 from pydevp2p.utils import bytes_to_int, hex_to_bytes
 
+write_to_file = False
 
 boot_priv_static_k = "3028271501873c4ecf501a2d3945dcb64ea3f27d6f163af45eb23ced9e92d85b"
 node1_priv_static_k = "4622d11b274848c32caf35dded1ed8e04316b1cde6579542f0510d86eb921298"
@@ -28,12 +30,20 @@ cache = {
 
 }
 
+recv = []
 
-def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str) -> AuthMsgV4 | AuthRespV4 | None:
+
+def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str, visited: bool = False, number: int = -1) -> AuthMsgV4 | AuthRespV4 | None:
     src_node = all_nodes.get(srcip)
     dst_node = all_nodes.get(dstip)
     if src_node is None or dst_node is None:
         return None
+
+    if write_to_file and not visited:
+        recv.append({"src": srcip, "dst": dstip,
+                    "payload": payload, "type": "rlpx-handshake", "visited": visited, "number": number})
+        with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
+            json.dump(recv, f)
 
     key = srcip + dstip + payload
     ret = cache.get(key)
@@ -53,11 +63,17 @@ def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str) -> AuthMsgV4 | 
     return ret
 
 
-def handleRLPxMsg(srcip: str, dstip: str, payload: str) -> tuple[FrameHeader, RLPxP2PMsg | RLPxCapabilityMsg | None, str | None] | None:
+def handleRLPxMsg(srcip: str, dstip: str, payload: str, visited: bool = False, number: int = -1) -> tuple[FrameHeader, RLPxP2PMsg | RLPxCapabilityMsg | None, str | None] | None:
     src_node = all_nodes.get(srcip)
     dst_node = all_nodes.get(dstip)
     if src_node is None or dst_node is None:
         return None
+
+    if write_to_file and not visited:
+        recv.append({"src": srcip, "dst": dstip,
+                    "payload": payload, "type": "rlpx-msg", "visited": visited, "number": number})
+        with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
+            json.dump(recv, f)
 
     key = srcip + dstip + payload
     ret = cache.get(key)
@@ -84,13 +100,19 @@ def handleRLPxMsg(srcip: str, dstip: str, payload: str) -> tuple[FrameHeader, RL
     return frameHeader, frameBody, frameType
 
 
-def handleDiscv5Msg(srcip: str, dstip: str, payload: str) -> tuple[Discv5Header, Discv5Packet | None] | None:
+def handleDiscv5Msg(srcip: str, dstip: str, payload: str, visited: bool = False, number: int = -1) -> tuple[Discv5Header, Discv5Packet | None] | None:
     src_node = all_nodes.get(srcip)
     dst_node = all_nodes.get(dstip)
     if src_node is None or dst_node is None:
         return None
 
     flag_types = ["MESSAGE", "WHOAREYOU", "HANDSHAKE"]
+
+    if write_to_file and not visited:
+        recv.append({"src": srcip, "dst": dstip,
+                    "payload": payload, "type": "discv5", "visited": visited, "number": number})
+        with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
+            json.dump(recv, f)
 
     key = srcip + dstip + payload
     ret = cache.get(key)
@@ -122,9 +144,16 @@ def handleDiscv5Msg(srcip: str, dstip: str, payload: str) -> tuple[Discv5Header,
     return discv5Header, headerSize, discv5Packet, packetType
 
 
-def handleDiscv4Msg(srcip: str, dstip: str, payload: str) -> tuple[Discv4Header, Discv4Packet | None] | None:
+def handleDiscv4Msg(srcip: str, dstip: str, payload: str, visited: bool = False, number: int = 0) -> tuple[Discv4Header, Discv4Packet | None] | None:
     src_node = all_nodes.get(srcip)
     dst_node = all_nodes.get(dstip)
+
+    if write_to_file and not visited:
+        recv.append({"src": srcip, "dst": dstip,
+                    "payload": payload, "type": "discv4", "visited": visited, "number": number})
+        with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
+            json.dump(recv, f)
+
     if src_node is None or dst_node is None:
         try:
             dec_msg = decodeDiscv4(hex_to_bytes(payload))

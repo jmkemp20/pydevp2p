@@ -30,9 +30,9 @@ class Packet:
                 if len(val) > 0 and attr == "nodes":
                     ret += f"\n  {attr.capitalize()}:"
                     for idx, item in enumerate(val):
-                        ret += f"\n       {attr.capitalize()} #{idx+1}:"
+                        ret += f"\n   {attr.capitalize()} #{idx+1}:"
                         for field in Record.as_str_list(item):
-                            ret += f"\n               {field}"
+                            ret += f"\n      {field}"
                 else:
                     cleansedVal = ", ".join(cleanse_rlp(val))
                     ret += f"\n  {attr.capitalize()}: {cleansedVal}"
@@ -50,9 +50,9 @@ class Packet:
                 if len(val) > 0 and attr == "nodes":
                     ret.append(attr.capitalize())
                     for idx, item in enumerate(val):
-                        ret.append(f"       {attr.capitalize()} #{idx+1}:")
+                        ret.append(f"   {attr.capitalize()} #{idx+1}:")
                         for field in Record.as_str_list(item):
-                            ret.append(f"               {field}")
+                            ret.append(f"      {field}")
                         ret[0] += len(item)
                 else:
                     cleansedVal = ", ".join(cleanse_rlp(val))

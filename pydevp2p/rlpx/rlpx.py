@@ -165,7 +165,7 @@ class SessionState:
         # print("header:", header.hex())
         if header is None:
             print(
-                f"{framectx()} SessionState readFrame(data) Err Unable to Decrypt Header: {bytes_to_hex(data[:headerSize])}")
+                f"{framectx()} SessionState readFrame(data) Err Unable to Decrypt Header of size: {headerSize}")
             return None
 
         try:
@@ -179,7 +179,7 @@ class SessionState:
         # print("frame[:frameSize]:", bytes_to_hex(frame[:frameSize]))
         if frame is None:
             print(
-                f"{framectx()} SessionState readFrame(data) Err Unable to Decrypt Frame: {bytes_to_hex(data[headerSize:])}")
+                f"{framectx()} SessionState readFrame(data) Err Unable to Decrypt Frame Body of size: {len(data[headerSize:])}")
             return frameHeader, None
 
         code = decode(frame[:1], sedes=big_endian_int, strict=False)
@@ -205,6 +205,7 @@ class SessionState:
 
         # Snappy Decompression
         decompress = snappy.decompress(frame[1:frameHeader.frameSize])
+
         # print(f"code: {code}, Decompressed:", bytes_to_hex(decompress))
 
         # RLP Decoding of Snappy decompressed data
