@@ -8,7 +8,7 @@ from pydevp2p.crypto.params import ECIES_AES128_SHA256
 from pydevp2p.rlp.extention import RLPMessage
 from pydevp2p.rlpx.capabilities import RLPxCapabilityMsg, get_rlpx_capability_msg
 from pydevp2p.rlpx.handshake import Secrets
-from pydevp2p.rlpx.types import RLPxP2PMsg
+from pydevp2p.rlpx.types import RLPxP2PMsg, RLPxTempMsg
 from pydevp2p.utils import bytes_to_hex, bytes_to_int, ceil16, dict_to_flat_str, framectx, read_uint24
 
 
@@ -27,12 +27,13 @@ class FrameHeader:
     def __init__(self, header: bytes, raw_data: bytes) -> None:
         self.header = bytes_to_hex(header)
         self.headerCiphertext = raw_data[:16]
-        self.mac = bytes_to_hex(raw_data[16:])
+        self.headerMac = bytes_to_hex(raw_data[16:])
         # Get the frame size from the first 3 bytes
         # ..frameSize = struct.unpack(b'>I', b'\x00' + header[:3])[0]
         self.frameSize = read_uint24(header)
         # Round up frame size to 16 byte boundary for padding
         self.readSize = ceil16(self.frameSize)
+        self.frameMac: str | None = None
         headerDec = None
         try:
             headerDec = decode(
@@ -96,6 +97,8 @@ class SessionState:
         self.egressMac = HashMAC()
         self.ingressMac = HashMAC()
         self.handshakeCompleted = False
+        self.recv: bytes | None = None  # used to hold packet info waiting completion
+        self.recvHeader: bytes | None = None  # used to hold parent frame header
 
     def __str__(self) -> str:
         ret = f"RLPx SessionState:"
@@ -124,10 +127,21 @@ class SessionState:
         # TODO verify header_mac
         return self.dec.decrypt(header_ciphertext)
 
-    def _decryptBody(self, bodyData: bytes, readSize: int) -> bytes | None:
+    def _decryptBody(self, bodyData: bytes, readSize: int, raw: bytes, frameDataDec: bytes, frameHeader: FrameHeader) -> bytes | bool:
         if not len(bodyData) >= readSize + 16:
-            print(f"{framectx()} SessionState _decryptBody(bodyData, readSize) Err Insufficient Body Len {len(bodyData)}, Expected {len(bodyData)} >= {readSize + 16}")
-            return None
+            diff = readSize + 16 - len(bodyData)
+            if diff > 50000:
+                print(f"{framectx()} SessionState _decryptBody(bodyData, readSize) Err Insufficient Body Len {len(bodyData)}, Expected {len(bodyData)} >= {readSize + 16}")
+                return False
+            print(
+                f" .. Awaiting more data... Need {len(bodyData)} >= {readSize + 16} ")
+            self.recv = raw
+            if self.recvHeader is None:
+                self.recvHeader = frameDataDec
+            return True
+
+        self.recv = None  # No longer awaiting data
+        self.recvHeader = None
 
         frame_ciphertext = bodyData[:readSize]
         frame_mac = bodyData[readSize: readSize + 16]
@@ -135,13 +149,14 @@ class SessionState:
         if len(frame_mac) != 16:
             print(
                 f"{framectx()} SessionState _decryptBody(bodyData, readSize) Err Invalid MAC Len")
-            return None
+            return False
 
         # TODO verify frame_mac
+        frameHeader.frameMac = bytes_to_hex(frame_mac)
 
         return self.dec.decrypt(frame_ciphertext)
 
-    def readFrame(self, data: bytes) -> tuple[FrameHeader, RLPxP2PMsg | RLPxCapabilityMsg | None] | None:
+    def readFrame(self, data: bytes) -> tuple[FrameHeader | None, RLPxP2PMsg | RLPxCapabilityMsg | RLPxTempMsg | None]:
         """SessionState readFrame reads and decrypts message frames, which are all
         messages that follow the initial handshake. A frame carries a single encrypted
         message belonging to a capability. This function allows for both decrypting
@@ -159,28 +174,39 @@ class SessionState:
         Returns:
             bytes | None: The decrypted message frame or None if an error occurred
         """
+        header = None
+        raw_data = data
+        if self.recv is not None:
+            # there is a pending header + body waiting for this extra data
+            print(f" .. Previous data found of len {len(self.recv)}")
+            raw_data = self.recv + data
+            header = self.recvHeader
+
         headerSize = FrameHeader.headerSize
-        # Read the frame header
-        header = self._decryptHeader(data[:headerSize])
-        # print("header:", header.hex())
+        # Read the frame header if there is not a previous header found
+        if header is None:
+            header = self._decryptHeader(raw_data[:headerSize])
         if header is None:
             print(
-                f"{framectx()} SessionState readFrame(data) Err Unable to Decrypt Header of size: {headerSize}")
-            return None
+                f"{framectx()} SessionState readFrame(raw_data) Err Unable to Decrypt Header of size: {headerSize}")
+            return None, None
 
         try:
-            frameHeader = FrameHeader(header, data[:headerSize])
+            frameHeader = FrameHeader(header, raw_data[:headerSize])
         except BaseException as e:
-            print(f"{framectx()} SessionState readFrame(data) Err : {e}")
-            return None
+            print(f"{framectx()} SessionState readFrame(raw_data) Err : {e}")
+            return None, None
 
         # Decrypt and verify frame-ciphertext and frame-mac
-        frame = self._decryptBody(data[headerSize:], frameHeader.readSize)
+        frame = self._decryptBody(
+            raw_data[headerSize:], frameHeader.readSize, raw_data, header, frameHeader)
         # print("frame[:frameSize]:", bytes_to_hex(frame[:frameSize]))
-        if frame is None:
-            print(
-                f"{framectx()} SessionState readFrame(data) Err Unable to Decrypt Frame Body of size: {len(data[headerSize:])}")
-            return frameHeader, None
+        if isinstance(frame, bool):
+            if not frame:
+                print(
+                    f"{framectx()} SessionState readFrame(raw_data) Err Unable to Decrypt Frame Body of size: {len(raw_data[headerSize:])}")
+                return frameHeader, None
+            return frameHeader, RLPxTempMsg()
 
         code = decode(frame[:1], sedes=big_endian_int, strict=False)
 
@@ -189,12 +215,12 @@ class SessionState:
             dec_frame = decode(frame[1:frameHeader.frameSize], strict=False)
             if dec_frame is None:
                 print(
-                    f"{framectx()} SessionState readFrame(data) Err Unable to Decode Frame")
+                    f"{framectx()} SessionState readFrame(raw_data) Err Unable to Decode Frame")
                 return frameHeader, None
 
             if not RLPxP2PMsg.validate(code, dec_frame):
                 print(
-                    f"{framectx()} SessionState readFrame(data) Err Unable to Validate RLPxP2PMsg {code}: {dec_frame}")
+                    f"{framectx()} SessionState readFrame(raw_data) Err Unable to Validate RLPxP2PMsg {code}: {dec_frame}")
                 return frameHeader, None
             self.handshakeCompleted = True
 
@@ -208,23 +234,24 @@ class SessionState:
 
         # print(f"code: {code}, Decompressed:", bytes_to_hex(decompress))
 
-        # RLP Decoding of Snappy decompressed data
+        # RLP Decoding of Snappy decompressed raw_data
         dec_decompress = None
         try:
             dec_decompress = decode(decompress, strict=False)
         except BaseException as e:
-            print(f"SessionState readFrame(data) decode(m, strict=False): {e}")
+            print(
+                f"SessionState readFrame(raw_data) decode(m, strict=False): {e}")
             return frameHeader, None
         if dec_decompress is None:
             print(
-                f"{framectx()} SessionState readFrame(data) Err Unable to Decode Decompressed Frame Body")
+                f"{framectx()} SessionState readFrame(raw_data) Err Unable to Decode Decompressed Frame Body")
             return frameHeader, None
 
         # check for code 1,2,3 (DISCONNECT, PING, PONG)
         if code == 1 or code == 2 or code == 3:
             if not RLPxP2PMsg.validate(code, dec_decompress):
                 print(
-                    f"{framectx()} SessionState readFrame(data) Err Unable to Validate RLPxP2PMsg {code}: {dec_decompress}")
+                    f"{framectx()} SessionState readFrame(raw_data) Err Unable to Validate RLPxP2PMsg {code}: {dec_decompress}")
                 return frameHeader, None
             return frameHeader, RLPxP2PMsg(code, dec_decompress)
 

@@ -1,4 +1,3 @@
-
 # Base switching
 from pydevp2p.crypto.utils import keccak256Hash
 
@@ -12,22 +11,27 @@ code_strings = {
     256: ''.join([chr(x) for x in range(256)])
 }
 
+
 def get_code_string(base):
     if base in code_strings:
         return code_strings[base]
     else:
         raise ValueError("Invalid base!")
-    
+
+
 def from_int_to_byte(a):
-    return bytes([a])    
+    return bytes([a])
+
 
 def from_byte_to_int(a):
-        return a
-    
+    return a
+
+
 def hash_to_int(x):
     if len(x) in [40, 64]:
         return decode(x, 16)
     return decode(x, 256)
+
 
 def decode(string, base):
     if base == 256 and isinstance(string, str):
@@ -50,6 +54,7 @@ def decode(string, base):
         string = string[1:]
     return result
 
+
 def encode(val, base, minlen=0):
     base, minlen = int(base), int(minlen)
     code_string = get_code_string(base)
@@ -71,5 +76,6 @@ def encode(val, base, minlen=0):
 
     return result
 
-def pubk_to_idv4(pubk: bytes) -> bytes: # 32 bytes
+
+def pubk_to_idv4(pubk: bytes) -> bytes:  # 32 bytes
     return keccak256Hash(pubk)

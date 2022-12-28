@@ -9,7 +9,7 @@ from pydevp2p.discover.v5wire.crypto import decodePubk, decryptGCM, deriveKeys, 
 from pydevp2p.discover.v5wire.msg import Packet, Unknown, Whoareyou, decodeMessageByType
 from pydevp2p.discover.v5wire.session import Session, SessionCache
 from pydevp2p.elliptic.utils import pubk_to_idv4
-from pydevp2p.utils import bytes_to_hex, bytes_to_int, framectx, int_to_bytes
+from pydevp2p.utils import bytes_to_hex, bytes_to_int, framectx
 # geth/p2p/discover/v5wire/encoding.go
 
 # Packet header flag values
@@ -186,7 +186,7 @@ class Discv5Codec:
         """
         if len(input) < minPacketSize:
             print(f"{framectx()} Discv5Codec decode(input, fromAddr) Err Invalid Packet Len, Expected >= {minPacketSize} Got {len(input)}")
-            return None, None
+            return None, None, None
 
         # Unmask the static header.
         head = Header(input[:sizeofMaskingIV])
@@ -200,7 +200,7 @@ class Discv5Codec:
         if not head.checkValid(remainingInput):
             print(
                 f"{framectx()} Discv5Codec decode(input, fromAddr) Err Static Header Invalid")
-            return None, None
+            return None, None, None
 
         # Unmask auth data
         authDataEnd = Header.STATIC_SIZE + bytes_to_int(head.authSize)
@@ -455,11 +455,6 @@ class Discv5Codec:
         Returns:
             Packet | None: The decrypted Packet or None if err
         """
-        # print("input:", bytes_to_hex(input))
-        # print("nonce:", bytes_to_hex(nonce))
-        # print("headerData:", bytes_to_hex(headerData))
-        # print("readKey:", bytes_to_hex(readKey))
-        # print()
         msgdata = decryptGCM(readKey, nonce, input, headerData)
         if msgdata is None or len(msgdata) == 0:
             print(

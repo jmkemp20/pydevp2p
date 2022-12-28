@@ -21,10 +21,14 @@ all_nodes: dict[str, Node] = {
 with open('out.json', 'r') as f:
     data = json.load(f)
 
+count = 0
+
 for idx, packet in enumerate(data):
     src, dst, payload, type, visited, number = packet.values()
     src_node, dst_node = all_nodes.get(src), all_nodes.get(dst)
     print(f"{number}) {src} → {dst}")
+    if not src_node or not dst_node:
+        break
     if type == "rlpx-handshake":
         msg = dst_node.readHandshakeMsg(hex_to_bytes(payload), src_node)
         print(msg)
@@ -33,12 +37,16 @@ for idx, packet in enumerate(data):
         header, packet = msg
         print(header)
         print(packet)
-        if number == 195:
-            break
     elif type == "discv4":
         pass
     elif type == "discv5":
         pass
     else:
         pass
+
+    # if number == 4650:
+    #     break
+
+    # if number == 4020:
+    #     break
     print()

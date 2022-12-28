@@ -1,5 +1,4 @@
-from abc import ABC
-from typing import Any, Sequence
+from typing import Any
 from rlp.sedes import Serializable
 from pydevp2p.utils import dict_to_depth_str_list, flatten_dict
 
@@ -17,7 +16,7 @@ class RLPMessage(Serializable):
                 if isinstance(val, RLPMessage):
                     ret2[new_field] = val.as_dict(
                         parent_field=(new_field if flat else None), flat=flat)
-                if isinstance(val, Serializable):
+                elif isinstance(val, Serializable):
                     ret2[new_field] = val.as_dict()
                 elif isinstance(val, tuple):
                     ret2[new_field] = parse_tuple(
@@ -27,11 +26,11 @@ class RLPMessage(Serializable):
             return ret2
 
         for field, value in zip(self._meta.field_names, self):
-            new_field = field if parent_field is None or not flat else f"{parent_field}_{field}"
+            new_field = field if parent_field is None or not flat else f"{parent_field}_#{field}"
             if isinstance(value, RLPMessage):
                 ret[new_field] = value.as_dict(
                     parent_field=new_field, flat=flat)
-            if isinstance(value, Serializable):
+            elif isinstance(value, Serializable):
                 ret[new_field] = value.as_dict()
             elif isinstance(value, tuple):
                 ret[new_field] = parse_tuple(value, new_field)

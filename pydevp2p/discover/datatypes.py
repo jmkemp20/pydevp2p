@@ -83,8 +83,6 @@ class Record:
                 ret[key] = dec
             else:
                 ret[key] = bytes_to_typestr(value, None)
-
-        print()
         return dict_to_depth_str_list(ret)
 
 

@@ -78,7 +78,11 @@ class EthCapabilitiy(RLPxCapabilityMsg):
         fields = (("Block", FullBlock), ("Total_Difficulty", big_endian_int))
 
     class NewPooledTransactionHashes(RLPMessage):
-        fields = [("Transaction_Hashes", CountableList(hex_value))]
+        # Below is the eth/66 EIP-2481 standard
+        # fields = [("Transaction_Hashes", VariableList(hex_or_int_value))]
+        # eth/68 standard go-ethereum/eth/protocols/eth/protocol.go
+        fields = (("Types", hex_or_int_value), ("Sizes",
+                  CountableList(big_endian_int)), ("Hashes", CountableList(hex_value)))
 
     class GetPooledTransactions(RLPMessage):
         fields = (("Request_ID", big_endian_int),
@@ -95,16 +99,14 @@ class EthCapabilitiy(RLPxCapabilityMsg):
 
     class Receipts(RLPMessage):
         # TODO There could be typed-receipts
-        class ReceiptEntry(RLPMessage):
-            class Receipt(RLPMessage):
-                class Log(RLPMessage):
-                    fields = (("Contract_Address", hex_value), ("Topics",
-                              CountableList(hex_value)), ("Data", hex_value))
-                fields = (("Post_State_Or_Status", hex_or_int_value), ("Cumulative_Gas",
-                          big_endian_int), ("Bloom", hex_value), ("Logs", CountableList(Log)))
-            fields = (("Receipt_1", Receipt), ("Receipt_2", Receipt))
+        class Receipt(RLPMessage):
+            class Log(RLPMessage):
+                fields = (("Contract_Address", hex_value), ("Topics", CountableList(hex_value)),
+                          ("Data", hex_value))
+            fields = (("Post_State_Or_Status", hex_or_int_value), ("Cumulative_Gas", big_endian_int),
+                      ("Bloom", hex_value), ("Logs", CountableList(Log)))
         fields = (("Request_ID", big_endian_int),
-                  ("Receipts", CountableList(ReceiptEntry)))
+                  ("Receipts", CountableList(CountableList(Receipt))))
 
     # Code Mappings
     code_types: list[RLPMessage | None] = [Status, NewBlockHashes, Transactions, GetBlockHeaders, BlockHeaders,
@@ -127,6 +129,8 @@ class EthCapabilitiy(RLPxCapabilityMsg):
         except BaseException as e:
             print(
                 f"{framectx()} ETH Err Unable to Decode Msg ({code}) {name} : {e}")
+            dec = decode(raw, strict=False)
+            print(dec)
             return
         if not isinstance(dec, RLPMessage):
             print(f"{framectx()} ETH Err Invalid Msg Type ({code}) {name} : {dec}")

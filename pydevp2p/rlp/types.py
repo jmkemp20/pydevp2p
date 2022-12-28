@@ -1,9 +1,5 @@
-from rlp.sedes import List, Serializable
-from rlp.exceptions import SerializationError, DeserializationError, ListDeserializationError, ListSerializationError
-from rlp.codec import is_sequence
-from pydevp2p.rlp.extention import RLPMessage
+from rlp.exceptions import SerializationError, DeserializationError, ListDeserializationError
 from pydevp2p.utils import bytes_to_hex, bytes_to_int, hex_to_bytes, int_to_bytes
-from rlp.sedes import CountableList
 
 
 class IPAddress(object):
@@ -106,7 +102,7 @@ class DateValue(object):
         # bytes -> parsed string date
         from time import strftime, localtime
         try:
-            return strftime('%Y-%m-%d %H:%M:%S', localtime(bytes_to_int(serial)))
+            return strftime("%Y-%m-%d %H:%M:%S", localtime(bytes_to_int(serial)))
         except Exception as e:
             raise DeserializationError(e, serial=serial)
 
@@ -122,9 +118,9 @@ class VariableList(object):
     :param max_length: maximum number of allowed elements, or `None` for no limit
     """
 
-    def __init__(self, element_sedes: Serializable, max_length=None):
+    def __init__(self, element_sedes, field_name=None):
         self.element_sedes = element_sedes
-        self.max_length = max_length
+        self.field_name = field_name
 
     def __iter__(self):
         for element in self.element_sedes:
@@ -139,4 +135,4 @@ class VariableList(object):
             print(f"ERROR: {serial}")
             raise ListDeserializationError(
                 'Wrong Number of Items in List', serial=serial)
-        return self.element_sedes.deserialize(serial)
+        return [self.element_sedes.deserialize(serial)]

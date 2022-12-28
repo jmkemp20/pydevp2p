@@ -1,5 +1,4 @@
 import json
-from time import time
 # This file is a bridge to handle payload data incoming from a LUA dissector
 from pydevp2p.discover.v4wire.decode import decodeDiscv4
 from pydevp2p.discover.v4wire.msg import Header as Discv4Header, Packet as Discv4Packet
@@ -44,18 +43,18 @@ def handleRLPxHandshakeMsg(srcip: str, dstip: str, payload: str, visited: bool =
                     "payload": payload, "type": "rlpx-handshake", "visited": visited, "number": number})
         with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
             json.dump(recv, f)
-
-    key = srcip + dstip + payload
+    key = number if number >= 0 else srcip + dstip + payload
     ret = cache.get(key)
     if not ret:
         try:
             dec = dst_node.readHandshakeMsg(hex_to_bytes(payload), src_node)
         except BaseException as e:
-            print(f"[BRIDGE] handleAuthMsg(srcip, dstip, payload) {e}")
+            print(
+                f"[BRIDGE] ({number}) handleRLPxHandshakeMsg({srcip} → {dstip}) : {e}")
             return None
         if dec is None:
             print(
-                f"[BRIDGE] handleAuthMsg(srcip, dstip, payload) Unable to readHandshakeMsg()")
+                f"[BRIDGE] ({number}) handleRLPxHandshakeMsg({srcip} → {dstip}) : Err Unable to Read Msg")
             return None
         ret = dec.getValues()
         cache[key] = ret
@@ -75,22 +74,23 @@ def handleRLPxMsg(srcip: str, dstip: str, payload: str, visited: bool = False, n
         with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
             json.dump(recv, f)
 
-    key = srcip + dstip + payload
+    key = number if number >= 0 else srcip + dstip + payload
     ret = cache.get(key)
     if not ret:
         try:
             decHeader, decBody = dst_node.readRLPxMsg(
                 hex_to_bytes(payload), src_node)
         except BaseException as e:
-            print(f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) {e}")
+            print(
+                f"[BRIDGE] ({number}) handleRLPxMsg({srcip} → {dstip}) : {e}")
             return None
         if decHeader is None:
             print(
-                f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Err Frame Header None")
+                f"[BRIDGE] ({number}) handleRLPxMsg({srcip} → {dstip}) Err Frame Header None")
             return None
         elif decBody is None:
             print(
-                f"[BRIDGE] handleRLPxMsg(srcip, dstip, payload) Err Frame Body None")
+                f"[BRIDGE] ({number}) handleRLPxMsg({srcip} → {dstip}) Err Frame Body None")
             return decHeader, None, None
         ret = (decHeader, decBody.getValues(), decBody.type)
         cache[key] = ret
@@ -114,7 +114,7 @@ def handleDiscv5Msg(srcip: str, dstip: str, payload: str, visited: bool = False,
         with open('/home/jkemp/cs700/pydevp2p/out.json', 'w') as f:
             json.dump(recv, f)
 
-    key = srcip + dstip + payload
+    key = number if number >= 0 else srcip + dstip + payload
     ret = cache.get(key)
     if not ret:
         try:
@@ -123,15 +123,16 @@ def handleDiscv5Msg(srcip: str, dstip: str, payload: str, visited: bool = False,
                 return None
             decHeader, decPacket = dec_msg
         except BaseException as e:
-            print(f"[BRIDGE] handleDiscv5Msg(srcip, dstip, payload) {e}")
+            print(
+                f"[BRIDGE] ({number}) handleDiscv5Msg({srcip} → {dstip}) : {e}")
             return None
         if decHeader is None:
             print(
-                f"[BRIDGE] handleDiscv5Msg(srcip, dstip, payload) Err Discv5 Header is None")
+                f"[BRIDGE] ({number}) handleDiscv5Msg({srcip} → {dstip}) Err Discv5 Header is None")
             return None
         elif decPacket is None:
             print(
-                f"[BRIDGE] handleDiscv5Msg(srcip, dstip, payload) Err Discv5 Packet is None")
+                f"[BRIDGE] ({number}) handleDiscv5Msg({srcip} → {dstip}) Err Discv5 Packet is None")
             return decHeader, None, None
         type = decPacket.getTypeString(
             flag_types[bytes_to_int(decHeader.flag)])
@@ -161,15 +162,16 @@ def handleDiscv4Msg(srcip: str, dstip: str, payload: str, visited: bool = False,
                 return None
             decHeader, decPacket = dec_msg
         except BaseException as e:
-            print(f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) {e}")
+            print(
+                f"[BRIDGE] ({number}) handleDiscv4Msg({srcip} → {dstip}) : {e}")
             return None
         if decHeader is None:
             print(
-                f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Header is None")
+                f"[BRIDGE] ({number}) handleDiscv4Msg({srcip} → {dstip}) Err Discv4 Header is None")
             return None
         elif decPacket is None:
             print(
-                f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Packet is None")
+                f"[BRIDGE] ({number}) handleDiscv4Msg({srcip} → {dstip}) Err Discv4 Packet is None")
             return decHeader.getValues(), None, None
         type = decPacket.getTypeString()
         return decHeader.getValues(), decPacket.getValues(), type
@@ -180,15 +182,16 @@ def handleDiscv4Msg(srcip: str, dstip: str, payload: str, visited: bool = False,
                 return None
             decHeader, decPacket = dec_msg
         except BaseException as e:
-            print(f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) {e}")
+            print(
+                f"[BRIDGE] ({number}) handleDiscv4Msg({srcip} → {dstip}) : {e}")
             return None
         if decHeader is None:
             print(
-                f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Header is None")
+                f"[BRIDGE] ({number}) handleDiscv4Msg({srcip} → {dstip}) Err Discv4 Header is None")
             return None
         elif decPacket is None:
             print(
-                f"[BRIDGE] handleDiscv4Msg(srcip, dstip, payload) Err Discv4 Packet is None")
+                f"[BRIDGE] ({number}) handleDiscv4Msg({srcip} → {dstip}) Err Discv4 Packet is None")
             return decHeader.getValues(), None, None
         type = decPacket.getTypeString()
         ret = (decHeader.getValues(), decPacket.getValues(), type)

@@ -106,6 +106,16 @@ class RLPxP2PMsg:
         return False
 
 
+class RLPxTempMsg:
+    """
+    Used for Frame Bodies that are not yet complete (awaiting on more data packets)
+    """
+    type = f"[RLPx Incomplete Msg]"
+
+    def getValues(self) -> list[int | str]:
+        return [1, "Awaiting More Data ..."]
+
+
 #################################################################
 # NOTE The following are Handshake AUTH and AUTH ACK Types only #
 #################################################################
