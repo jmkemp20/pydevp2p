@@ -130,7 +130,8 @@ class SessionState:
     def _decryptBody(self, bodyData: bytes, readSize: int, raw: bytes, frameDataDec: bytes, frameHeader: FrameHeader) -> bytes | bool:
         if not len(bodyData) >= readSize + 16:
             diff = readSize + 16 - len(bodyData)
-            if diff > 50000:
+            # 2 MiB soft limit
+            if diff > 2097000:
                 print(f"{framectx()} SessionState _decryptBody(bodyData, readSize) Err Insufficient Body Len {len(bodyData)}, Expected {len(bodyData)} >= {readSize + 16}")
                 return False
             print(
