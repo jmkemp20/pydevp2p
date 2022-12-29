@@ -39,6 +39,13 @@ class RLPxP2PMsg:
     additional list elements in Hello because they may be used by a future version."""
     msg_types = ["Hello", "Disconnect", "Ping", "Pong"]
 
+    disconnect_reasons = ["Disconnect requested", "TCP sub-system error",
+                          "Breach of protocol",
+                          "Useless peer", "Too many peers", "Already connected", "Incompatible P2P protocol version",
+                          "Null node identity received - this is automatically invalid", "Client quitting",
+                          "Unexpected identity in handshake", "Identity is the same as this node",
+                          "Ping timeout", "Unknown", "Unknown", "Unknown", "Unknown", "Some other reason specific to a subprotocol"]
+
     def __init__(self, code: int, msg: list[bytes]) -> None:
         self.code = code
         self.type = f"[P2P {self.msg_types[code]}] Type={self.msg_types[code]} Code={code}"
@@ -56,7 +63,8 @@ class RLPxP2PMsg:
                 self.capabilities.append(f"{name}: {version}")
             self.capabilities = ", ".join(self.capabilities)
         elif code == 1:
-            self.reason = msg[0]
+            self.reason = f"({msg[0]}) {self.disconnect_reasons[msg[0]]}"
+            self.type = f"[P2P {self.msg_types[code]}] Reason={self.reason} Type={self.msg_types[code]} Code={code}"
 
     def __str__(self) -> str:
         ret = ""
