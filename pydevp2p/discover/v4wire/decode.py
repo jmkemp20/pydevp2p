@@ -1,7 +1,7 @@
 from pydevp2p.crypto.secp256k1 import signature_to_pubk
 from pydevp2p.crypto.utils import verifyHash
 from pydevp2p.discover.v4wire.msg import Header, Packet, decodeMessageByType
-from pydevp2p.utils import bytes_to_int, framectx
+from pydevp2p.utils import bytes_to_hex, bytes_to_int, framectx
 
 # UDP packet constants.
 MAC_SIZE = 256 // 8  # 32
@@ -43,8 +43,10 @@ def decodeDiscv4(input: bytes) -> tuple[Header, Packet | None] | None:
         return None
 
     # Wow this is performance intensive
-    # fromKey = recoverNodeKey(sigdata, sig)
-    # if fromKey is None:
-    #     return None
+    fromKey = recoverNodeKey(sigdata, sig)
+    if fromKey is None:
+        return None
+
+    print("fromKey", bytes_to_hex(fromKey))
 
     return header, decodeMessageByType(header.type, sigdata[1:])

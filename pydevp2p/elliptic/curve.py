@@ -4,8 +4,11 @@ from pydevp2p.elliptic.types import EllipticCurve, PrivateKey, PublicKey, secp25
 from pydevp2p.elliptic.point import fast_multiply, from_jacobian, inv
 from pydevp2p.utils import bytes_to_int, int_to_bytes
 from pydevp2p.elliptic.utils import *
-# Holds the lower level elliptic curve point calculations
-# .. NOTE this is mostly applicable only to the secp256k1 curve
+
+# This file contains many lower level functions for elliptic curve operations
+# .. which are mostly applicable to the secp256k1 curve
+# .. Implementation derived from: pip3 install bitcoin
+# .... https://github.com/primal100/pybitcointools/blob/master/cryptos/main.py
 
 
 def isinf(p):
@@ -188,6 +191,14 @@ def create_private_key(key: int | str | bytes) -> PrivateKey:
 
 
 def decode_sig(sig: bytes) -> tuple[int, int, int]:
+    """decode_sig decodes a signature into the R, S and V values.
+
+    Args:
+        sig (bytes): The signature to decode
+
+    Returns:
+        tuple[int, int, int]: The R, S and V values of the signature
+    """
     r = bytes_to_int(sig[0:32])
     s = bytes_to_int(sig[32:64])
     v = ord(sig[64:65])
@@ -195,6 +206,15 @@ def decode_sig(sig: bytes) -> tuple[int, int, int]:
 
 
 def ecdsa_raw_recover(msghash: bytes, rsv: tuple[int, int, int]):
+    """ecdsa_raw_recover recovers the public key from the signature.
+
+    Args:
+        msghash (bytes): The message hash to recover the public key from
+        rsv (tuple[int, int, int]): The signature to recover the public key from
+
+    Returns:
+        bytes: The public key recovered from the signature
+    """
     # https://www.secg.org/sec1-v2.pdf page 47-48
     # https://gist.github.com/nlitsme/dda36eeef541de37d996
     N = secp256k1.N
@@ -224,4 +244,3 @@ def ecdsa_raw_recover(msghash: bytes, rsv: tuple[int, int, int]):
     Q = from_jacobian(Q)
 
     return encode_pubkey(Q, "bin_electrum")
-    # return False

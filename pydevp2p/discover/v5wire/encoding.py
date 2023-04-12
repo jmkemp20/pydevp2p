@@ -153,15 +153,6 @@ class Discv5Codec:
     localEnodeID: bytes = None
     sc: SessionCache = None
 
-    # encoder buffers
-    buf: bytes = None  # whole packet
-    headbuf: bytes = None  # packet header
-    msgbuf: bytes = None  # message RLP plaintext
-    msgctbuf: bytes = None  # message data ciphertext
-
-    # decoder buffers
-    reader: bytes = None
-
     def __init__(self, privk: bytes) -> None:
         self.sha256 = SHA256.new()
         self.privk = privk

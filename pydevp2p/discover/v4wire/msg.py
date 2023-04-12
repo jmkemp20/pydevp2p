@@ -1,5 +1,5 @@
 from pydevp2p.rlp.types import ip_address, hex_value, date_value
-from pydevp2p.rlp.utils import bytes_to_typestr, format_time, unwrap_rlp
+from pydevp2p.rlp.utils import bytes_to_typestr, unwrap_rlp
 from pydevp2p.utils import bytes_to_hex, bytes_to_int, dict_to_depth_str_list, framectx
 from rlp.sedes import big_endian_int, binary
 from pydevp2p.rlp.extention import RLPMessage

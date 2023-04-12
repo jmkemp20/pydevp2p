@@ -1,7 +1,7 @@
 from Crypto.Hash import HMAC
-from Crypto.Util import Counter 
+from Crypto.Util import Counter
 
-from pydevp2p.utils import bytes_to_int, int_to_bytes
+from pydevp2p.utils import bytes_to_hex, bytes_to_int, hex_to_bytes, int_to_bytes
 from pydevp2p.crypto.secp256k1 import unmarshal
 from pydevp2p.crypto.params import ECIES_Params, ECIES_AES128_SHA256
 from pydevp2p.elliptic.types import secp256k1
@@ -10,9 +10,10 @@ from pydevp2p.elliptic.curve import multiply, decode_pubkey
 # ECDH Key Exchange
 # https://cryptobook.nakov.com/asymmetric-key-ciphers/ecdh-key-exchange
 
+
 def generate_ephemeral_key(rand: bytes) -> bytes:
     """Generate a temporary elliptic curve public / private keypair.
-    
+
     Public key (R) generated via R = r * G
     Only used right before encryption, to generate a temporary public/private
 
@@ -25,16 +26,17 @@ def generate_ephemeral_key(rand: bytes) -> bytes:
     # TODO - Primarily takes place prior to encryption of a message
     pass
 
+
 def generate_shared_secret(pub: bytes, priv: bytes) -> bytes | None:
     """ECDH key agreement method used to establish secret keys for encryption.
-    
+
     Encryption: such that S = Px where (Px, Py) = r * pubK
     Decryption: such that S = Px where (Px, Py) = privK * R
     where r and privK is (priv) and pubK and R is (pub)
-    
+
     Using myPublicKey * theirPrivateKey = theirPublicKey * myPrivateKey = secret
     Where the pubk is from the other party
-    
+
     Args:
         pub (bytes): public key of other node
         priv (bytes): private key of self node
@@ -50,7 +52,8 @@ def generate_shared_secret(pub: bytes, priv: bytes) -> bytes | None:
     except Exception as e:
         print(f"generate_shared_key() {e}")
         return None
-    
+
+
 def concatKDF(hash, z: bytes, s1: bytes, kdlen: int, s2: bytes = None) -> bytes:
     """NIST SP 800-56 Concatenation Key Derivation Function (see section 5.8.1).
     This extracts key-material from the shared-secret, specifically the 
@@ -79,6 +82,7 @@ def concatKDF(hash, z: bytes, s1: bytes, kdlen: int, s2: bytes = None) -> bytes:
         counter += 1
     return k[:kdlen]
 
+
 def derive_keys(params: ECIES_Params, z: bytes, s1: bytes) -> tuple[bytes, bytes]:
     """Derives key material for encryption and authentication from shared secret
     using concatKDF hashing function
@@ -101,6 +105,7 @@ def derive_keys(params: ECIES_Params, z: bytes, s1: bytes) -> tuple[bytes, bytes
     hash.update(Km)
     Km = hash.digest()
     return Ke, Km
+
 
 def message_tag(hashAlgo, Km: bytes, msg: bytes, shared: bytes, testMac: bytes) -> bytes | None:
     """messageTag computes the MAC of a message (called the tag) as per SEC 1, 3.5.
@@ -143,13 +148,15 @@ def generateIV(blocksize: int, data: bytes) -> bytes:
     # TODO - generateIV() Currently do not need this functionality
     pass
 
+
 def sym_encrypt():
     # TODO - sym_encrypt() Currently do not need this functionality
     pass
 
+
 def encrypt(pub: bytes, m: bytes, s1: bytes, s2: bytes) -> bytes:
     """Encrypt encrypts a message using ECIES as specified in SEC 1, 5.1.
-    
+
     s1 and s2 contain shared information that is not part of the resulting
     ciphertext. s1 is fed into key derivation, s2 is fed into the MAC. If the
     shared information parameters aren't being used, they should be nil.
@@ -165,10 +172,11 @@ def encrypt(pub: bytes, m: bytes, s1: bytes, s2: bytes) -> bytes:
     # TODO - encrypt() Currently do not need this functionality
     pass
 
+
 def sym_decrypt(params: ECIES_Params, Ke: bytes, ct: bytes) -> bytes | None:
     """symDecrypt carries out CTR decryption using the block cipher specified in
     the parameters
-    
+
     Args:
         params (ECIES_Params): The ECIES paramaters used for decryption/hashing
         Ke (bytes): The shared derived encryption key
@@ -178,20 +186,21 @@ def sym_decrypt(params: ECIES_Params, Ke: bytes, ct: bytes) -> bytes | None:
         bytes | None: The decrypted ciphertext m or None if failed
     """
     iv = bytes_to_int(ct[:params.BlockSize])
-    
+
     ctr = Counter.new(params.BlockSize * 8, initial_value=iv)
     decryptor = params.Cipher.new(Ke, params.Cipher.MODE_CTR, counter=ctr)
     plain_text = decryptor.decrypt(ct[params.BlockSize:])
-    
+
     if len(ct) - params.BlockSize != len(plain_text):
         print(f"sym_decrypt(params, Ke, ct) Err Invalid Unable to Verify Decryption")
         return None
-    
+
     return plain_text
-    
+
+
 def decrypt(c: bytes, s1: bytes, s2: bytes, privK: bytes) -> bytes | None:
     """Decrypt decrypts an ECIES ciphertext c
-    
+
     s1 and s2 contain shared information that are not part of ciphertext
     c or the resulting message m. s1 is fed into key derivation, s2 is fed 
     into the MAC.
@@ -209,48 +218,54 @@ def decrypt(c: bytes, s1: bytes, s2: bytes, privK: bytes) -> bytes | None:
     if len(c) == 0:
         print("decrypt(c, s1, s2) Err Invalid Message c, len(c) == 0")
         return None
-    
+
     # Get the preferred hash algorithm via curve and shared key
     # .. NOTE for now, just using SHA.256
     # TODO This will become more dynamic in the future
     params: ECIES_Params = ECIES_AES128_SHA256
-    
+
     rLen = 0
     hLen = params.Hash.digest_size
     mEnd = 0
-    
+
     # Check to make sure the ECIES header (c[0]) is the correct value
     if c[0] == 2 or c[0] == 3 or c[0] == 4:
         rLen = int((secp256k1.size + 7) / 4)
         if len(c) < (rLen + hLen + 1):
-            print(f"decrypt(c, s1, s2) Err Invalid Message c, (len({c}) < {rLen + hLen + 1})")
+            print(
+                f"decrypt(c, s1, s2) Err Invalid Message c, (len({c}) < {rLen + hLen + 1})")
             return None
-    else: 
+    else:
         print(f"decrypt(c, s1, s2) Err Invalid Public Key c, c[0] = {c[0]}")
         return None
-    
+
     mStart = rLen
     mEnd = len(c) - hLen
-    
+
     # Next, Unmarshal the ephemeral public key (ECDH pubK) from the ciphertext R
     R = unmarshal(c[:rLen])
     if not R:
         print("decrypt(c, s1, s2) Err Unable to Unmarshal Public Key to R")
         return None
-    
+
+    print()
+    print(bytes_to_hex(R))
+    print()
+
     # Next, generate the shared secret such that S = Px where (Px, Py) = r * Kpub
+    # .. or (Px, Py) = privK * R
     S = generate_shared_secret(R, privK)
     if S is None:
         print("decrypt(c, s1, s2) Err Unable to Generate Shared Secret S")
         return None
-    
+
     # Next, derive the keys using the Ke || Km = KDF(S, 32)
     Ke, Km = derive_keys(params, S, s1)
-    
+
     # Next, compute the message tag and compare with the existing from the msg
     d = message_tag(params.hashAlgo, Km, c[mStart:mEnd], s2, c[mEnd:])
     if d is None:
         print("decrypt(c, s1, s2) Err Unable to Validate MAC from msg c")
         return None
-    
+
     return sym_decrypt(params, Ke, c[mStart:mEnd])

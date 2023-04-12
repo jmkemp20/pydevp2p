@@ -14,14 +14,12 @@ boot_priv_static_k = "3028271501873c4ecf501a2d3945dcb64ea3f27d6f163af45eb23ced9e
 node1_priv_static_k = "4622d11b274848c32caf35dded1ed8e04316b1cde6579542f0510d86eb921298"
 node2_priv_static_k = "816efc6b019e8863c382fe94cefe8e408d53697815590f03ce0a5cbfdd5f23f2"
 node3_priv_static_k = "3fadc6b2fbd8c7cf1b2292b06ebfea903813b18b287dc29970a8a3aa253d757f"
-self_geth_static_k = "a633a66872c6343407cfa4b4d2095850fceb53d85db5247f0f8c27c5252dede6"
 
 all_nodes: dict[str, Node] = {
     "10.1.0.10": Node("10.1.0.10", hex_to_bytes(boot_priv_static_k)),
     "10.1.1.10": Node("10.1.1.10", hex_to_bytes(node1_priv_static_k)),
     "10.1.2.20": Node("10.1.2.20", hex_to_bytes(node2_priv_static_k)),
-    "10.1.3.30": Node("10.1.3.30", hex_to_bytes(node3_priv_static_k)),
-    "172.23.69.251": Node("10.1.3.30", hex_to_bytes(self_geth_static_k))
+    "10.1.3.30": Node("10.1.3.30", hex_to_bytes(node3_priv_static_k))
 }
 
 cache = {

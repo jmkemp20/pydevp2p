@@ -1,8 +1,17 @@
 from pydevp2p.elliptic.types import secp256k1
 
+# Jacobian coordinates are a way to represent points on an elliptic curve
+# .. This is a more efficient way to perform operations on the curve
+# .. This file contains functions to convert between affine and jacobian coordinates
+# .. and to perform operations on points in jacobian coordinates
+# .. Original implementation by:
+# .... https://github.com/primal100/pybitcointools/blob/master/cryptos/main.py
+
+
 def to_jacobian(p: tuple[int, int]) -> tuple[int, int, int]:
     o = (p[0], p[1], 1)
     return o
+
 
 def jacobian_double(p: tuple[int, int, int]) -> tuple[int, int, int]:
     if not p[1]:
@@ -14,6 +23,7 @@ def jacobian_double(p: tuple[int, int, int]) -> tuple[int, int, int]:
     ny = (M * (S - nx) - 8 * ysq ** 2) % secp256k1.P
     nz = (2 * p[1] * p[2]) % secp256k1.P
     return (nx, ny, nz)
+
 
 def jacobian_add(p: tuple[int, int, int], q: tuple[int, int, int]) -> tuple[int, int, int]:
     if not p[1]:
@@ -37,6 +47,7 @@ def jacobian_add(p: tuple[int, int, int], q: tuple[int, int, int]) -> tuple[int,
     ny = (R * (U1H2 - nx) - S1 * H3) % secp256k1.P
     nz = (H * p[2] * q[2]) % secp256k1.P
     return (nx, ny, nz)
+
 
 def jacobian_multiply(a: tuple[int, int, int], n: int) -> tuple[int, int, int]:
     if a[1] == 0 or n == 0:
